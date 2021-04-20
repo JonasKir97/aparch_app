@@ -197,7 +197,12 @@ simulateCompoundPoisson <- function(timeGrid = 1:10,
 #' @return a named list consisting of
 #' \code{jumpTimes} : a vector of the processes jump times
 #' \code{levyProcess} : a vector with the values of the Levy process (Variance gamma process)
-simulateVarianceGamma <- function(timeGrid = 1:10, sigma = 1, nu = 0.05, theta = 0.5, gs = 0.01, randomSeed = 2021) {
+simulateVarianceGamma <- function(timeGrid = 1:10, 
+                                  sigma = 1, 
+                                  nu = 0.05, 
+                                  theta = 0.5, 
+                                  gs = 0.01, 
+                                  randomSeed = 2021) {
   
   ts <- seq(0,timeGrid[length(timeGrid)],gs)
   dts <- ts[2:length(ts)]-ts[1:(length(ts)-1)]
