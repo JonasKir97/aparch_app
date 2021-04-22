@@ -1,13 +1,3 @@
-#' helper for a nicer actionbutton
-niceActionButton <- function(inputId, label, icon, width = "100%", ...) {
-  btn <- actionButton(inputId = inputId, label = label, icon = icon, width = width, ...)
-  btn$attribs$class <- paste(btn$attribs$class, "btn-darker")
-  return(btn)
-}
-
-#' helper for a nice centered HTML h1-title
-h1c <- function(h1Title) return(HTML("<H1 align='center'>",h1Title,"</H1>"))
-
 #' helper to validate the inputs for the discrete simulation of an APARCH(1,1)-process
 validateAndProcessDiscreteSimulationInput <- function(shinyInputObject) {
   deltas <- shinyInputObject$deltaDiscrete #Zeichenkette, ggf kommagetrennt für mehrere Simulationen mit variierenden Delta
@@ -53,7 +43,7 @@ validateAndProcessDiscreteSimulationInput <- function(shinyInputObject) {
   
 }
 
-#' the function h occuring in the definition of an APARCH)1,1)-process
+#' the function h occuring in the definition of an APARCH(1,1)-process
 h <- function(x,gamma,delta) {
   return((abs(x)-gamma*x)^delta)
 }
@@ -101,40 +91,6 @@ simulateDiscreteAPARCH11 <- function(steps = 1000,
   }
   
   return(list(noises = epsilons, sigmaDelta = sigmaDelta, Y = Y))
-}
-
-#' helper to set the theme of the plots for Shiny-App
-darkPlotTheme <- function(axisTextSize = 10,
-                          axisTitleSize = 12,
-                          legendTextSize = 10,
-                          legendTitleSize = 12,
-                          plotTitleSize = 14,
-                          legendkey_space = 1,
-                          panel_space = 0.5) {
-  backColor <- "#49566b"
-  foreColor <- "#384252"
-  textColor <- "#C0C0C0"
-  legendTextColor <- "#FFFFFF"
-  elements <- list(axis.text.x = element_text(size = axisTextSize, color = textColor),
-                   axis.text.y = element_text(size = axisTextSize, color = textColor),
-                   axis.ticks = element_line(colour = backColor),
-                   plot.background = element_rect(fill = backColor, color = backColor),
-                   panel.background = element_rect(fill = foreColor, colour = foreColor),
-                   panel.border = element_blank(),
-                   panel.grid.major = element_line(colour = backColor, size = 0.5),
-                   panel.grid.minor = element_blank(),
-                   strip.background = element_rect(fill = textColor),
-                   axis.line = element_line(colour = backColor, size = 0.5),
-                   legend.key.height = unit(legendkey_space, "lines"),
-                   plot.title = element_text(color = "white", size = plotTitleSize, hjust = 0.5, face = "bold"),
-                   axis.title.x = element_text( color = textColor, size = axisTitleSize, face = "bold"),
-                   axis.title.y = element_text( color = textColor, size = axisTitleSize, face = "bold"),
-                   legend.text = element_text( color = legendTextColor, size = legendTextSize),
-                   legend.title = element_text( color = legendTextColor, size = legendTitleSize, face = "bold"),
-                   legend.key = element_rect(fill = backColor, colour = backColor),
-                   legend.background = element_rect(fill = backColor),
-                   panel.spacing = unit(panel_space, "lines"))
-  structure(elements, class = c("theme", "gg"), complete = FALSE)
 }
 
 #' simulate a compound Poisson process as driving Levy process on a given timegrid with intensity lambda

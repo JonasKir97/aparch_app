@@ -1,4 +1,4 @@
-requiredPackages <- c("shiny","shinythemes","shinyjs","ggplot2","Rcpp")
+requiredPackages <- c("shiny","shinythemes","shinyjs","shinycssloaders","ggplot2","Rcpp")
 
 installMissingPackages <- function(rPackageRepository = "https://cran.rstudio.com/"){
   availablePackages <- unname(utils::installed.packages()[,1])
