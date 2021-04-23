@@ -4,12 +4,14 @@ aCOGARCH_SimulationApp <- function() {
   useHighCharts <- TRUE
   
   if(useHighCharts) setGermanHighChartOptions()
-
+  
   #Tags und Styling----
-  additionalTags <- c("#specificationErrorText{color:white;font-size:14px;background-color:red}",
-                      "#simulationErrorText{color:white;font-size:14px;background-color:red}",
-                      "#calculateSimulation{background-color:#df691a}",
-                      "#simulateLevy{background-color:#df691a}")
+  txtTags <- c("#specificationErrorText{color:white;font-size:14px;background-color:red}",
+               "#simulationErrorText{color:white;font-size:14px;background-color:red}",
+               "#levySimulationError{color:white;font-size:14px;background-color:red}")
+  btnTags <- c( "#calculateSimulation{background-color:#df691a}",
+                "#simulateLevy{background-color:#df691a}")
+  additionalTags <- c(txtTags,btnTags)
   
   #Sidebar----
   aCOGARCH_SimulationApp_UI <- uiWrapper(
@@ -61,7 +63,8 @@ aCOGARCH_SimulationApp <- function() {
                                           choices = c("Compound Poisson","Varianz-Gamma","Brownsche Bewegung")),
                            textInput(inputId = "levySimuTimeGrid", label = "Zeitgitter der Simulation", value = "1:100"),
                            uiOutput(outputId = "levySimulationSpecificationUI"),
-                           actionButton(inputId = "simulateLevy", label = "Simulieren", width = "100%")
+                           actionButton(inputId = "simulateLevy", label = "Simulieren", width = "100%"),
+                           verbatimTextOutput("levySimulationError")
           )
         ),
         #Mainpanel----
@@ -86,8 +89,9 @@ aCOGARCH_SimulationApp <- function() {
   
   #Server----
   aCOGARCH_SimulationApp_Server <- function(input,output,session) {
+    #________________------
     
-    #SIMULATION----
+    #APARCH-SIMULATION----
     #_TEX-Formel-UI----
     discreteSimulationTexString <- paste0(
       "$$ Y_i = \\varepsilon_i \\sigma_i$$",
@@ -198,7 +202,9 @@ aCOGARCH_SimulationApp <- function() {
     })
     
     
-    #csv-Import----
+    #________________------
+    #SCHÄTZUNG----
+    #_csv-Import----
     observeEvent(input$nasdaqCsvFile, {
       
       if(is.null(input$nasdaqCsvFile)) {
@@ -244,8 +250,23 @@ aCOGARCH_SimulationApp <- function() {
       output$estimationDataPlotUI <- renderUI(estimationDataPlotUI)
     })
     
-    
+    #________________------
     #LEVYSIMULATION-----
+    observeEvent(input$levySimulationType, {
+      output$levySimulationMainUI <- renderUI(NULL)
+      if(useHighCharts) {
+        output$processAndJumpPlot <- renderHighchart(NULL)
+        output$vgPlot <- renderHighchart(NULL)
+        output$bbPlot <- renderHighchart(NULL)
+      } else {
+        output$processPlot <- renderPlot(darkEmptyPlot())
+        output$jumpPlot <- renderPlot(darkEmptyPlot())
+        output$vgPlot <- renderPlot(darkEmptyPlot())
+        output$bbPlot <- renderPlot(darkEmptyPlot())
+      }
+    })
+    
+    #_UI-----
     observeEvent(input$levySimulationType, {
       simuType <- input$levySimulationType
       
@@ -256,16 +277,26 @@ aCOGARCH_SimulationApp <- function() {
         )
       } else if(simuType == "Varianz-Gamma") {
         
-        levySimulationSpecificationUI <- shiny::p("VG")
+        levySimulationSpecificationUI <- tagList(
+          fluidRow(
+            column(3,numericInput(inputId = "levySimuVGsigma", label = "sigma", value = 1)),
+            column(3,numericInput(inputId = "levySimuVGnu", label = "nu", value = 0.05)),
+            column(3,numericInput(inputId = "levySimuVGtheta", label = "theta", value = 0.5)),
+            column(3,numericInput(inputId = "levySimuVGgs", label = "Schrittweite", value = 0.01))
+          )
+        )
+        
       } else if(simuType == "Brownsche Bewegung") {
         
         levySimulationSpecificationUI <- tagList(
           numericInput(inputId = "levySimuBBnr", label = "Anzahl innerhalb des Zeitgitters", value = 1000),
           fluidRow(
-            column(6, numericInput(inputId = "levySimuBBmu", label = "Mittelwert", value = 0)),
-            column(6, numericInput(inputId = "levySimuBBsd", label = "Standardabweichung", value = 1))
+            column(4, numericInput(inputId = "levySimuBBmu", label = "Mittelwert", value = 0)),
+            column(4, numericInput(inputId = "levySimuBBsd", label = "Standardabweichung", value = 1)),
+            column(4,numericInput(inputId = "levySimuBBgs", label = "Schrittweite", value = 0.01))
           )
         )
+        
       } else {
         output$simuSpecificationErrorText <- renderText("Ungültiger Lévyprozess ausgewählt.")
         return(verbatimTextOutput(outputId = "simuSpecificationErrorText"))
@@ -274,8 +305,10 @@ aCOGARCH_SimulationApp <- function() {
       output$levySimulationSpecificationUI <- renderUI(levySimulationSpecificationUI)
     })
     
+    #_Calculate----
     observeEvent(input$simulateLevy, {
       simulationSpecs <- parseLevySimulationSpecification(shinyInput = input)
+      output$levySimulationError <- renderText(simulationSpecs$error)
       
       if(!is.null(simulationSpecs$error)) {
         return()
@@ -285,17 +318,52 @@ aCOGARCH_SimulationApp <- function() {
       simuType <- simulationSpecs$simuType
       
       if(simuType == "Compound Poisson") {
+        #__Compound Poisson----
         levyData <- simulateCompoundPoisson(timeGrid = timeGrid, lambda = simulationSpecs$lambda, randomSeed = sample(1:10000,1))
         
-        pd <- data.frame(x=levyData$jumpTimes, y = levyData$levyProcess)
+        cpPlots <- generateCompoundPoissonLevyProcessPlot(levyData, useHighCharts = useHighCharts)
         
-        cpPlot <- ggplot(pd) + geom_step(mapping = aes(x=x,y=y), color="white") + darkPlotTheme()
-        cpPlot <- cpPlot + labs(x="Zeit",y="Wert",title ="Verlauf des simulierten Compound Poisson")
+        if(useHighCharts) {
+          output$processAndJumpPlot <- renderHighchart(cpPlots[["hc"]])
+          levySimulationMainUI <- withSpinner(highchartOutput(outputId = "processAndJumpPlot", height = 800))
+        } else {
+          output$processPlot <- renderPlot(cpPlots[["processPlot"]])
+          output$jumpPlot <- renderPlot(cpPlots[["jumpPlot"]])
+          
+          levySimulationMainUI <- tagList(
+            withSpinner(plotOutput(outputId = "processPlot", height = 400)),
+            withSpinner(plotOutput(outputId = "jumpPlot", height = 400))
+          )
+        }
         
-        output$cpPlot <- renderPlot(cpPlot)
+      } else if(simuType == "Varianz-Gamma") {
+        #__Varianz-Gamma----
+        levyData <- simulateVarianceGamma(timeGrid = timeGrid, sigma = simulationSpecs$sigma, nu = simulationSpecs$nu,
+                                          theta = simulationSpecs$theta, gs = simulationSpecs$gs, randomSeed = sample(1:10000,1))
         
-        levySimulationMainUI <- plotOutput(outputId = "cpPlot", height = 600)
+        vgPlot <- generateVarianceGammaLevyProcessPlot(levyData, useHighCharts = useHighCharts)
         
+        if(useHighCharts) {
+          output$vgPlot <- renderHighchart(vgPlot)
+          levySimulationMainUI <- withSpinner(highchartOutput(outputId = "vgPlot", height = 800))
+        } else {
+          output$vgPlot <- renderPlot(vgPlot)
+          levySimulationMainUI <- withSpinner(plotOutput(outputId = "vgPlot", height = 800))
+        }
+      } else if (simuType == "Brownsche Bewegung") {
+        #__Brownsche Bewegung----
+        levyData <- simulateBrownianMotion(timeGrid = timeGrid, mu = simulationSpecs$mu, sigma = simulationSpecs$sigma,
+                                           gs = simulationSpecs$gs, randomSeed = sample(1:10000,1))
+        
+        bbPlot <- generateBrownianLevyProcessPlot(levyData, useHighCharts = useHighCharts)
+        
+        if(useHighCharts) {
+          output$bbPlot <- renderHighchart(bbPlot)
+          levySimulationMainUI <- withSpinner(highchartOutput(outputId = "bbPlot", height = 800))
+        } else {
+          output$bbPlot <- renderPlot(bbPlot)
+          levySimulationMainUI <- withSpinner(plotOutput(outputId = "bbPlot", height = 800))
+        }
       } else {
         warning("Noch nicht implementiert")
         return()
@@ -303,8 +371,6 @@ aCOGARCH_SimulationApp <- function() {
       
       output$levySimulationMainUI <- renderUI(levySimulationMainUI)
     })
-    
-    
     
   } #end server
   

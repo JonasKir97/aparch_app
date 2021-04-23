@@ -164,7 +164,7 @@ simulateVarianceGamma <- function(timeGrid = 1:10,
                                   randomSeed = 2021) {
   
   ts <- seq(0,timeGrid[length(timeGrid)],gs)
-  dts <- ts[2:length(ts)]-ts[1:(length(ts)-1)]
+  dts <- ts[-1]-ts[-length(ts)]
   
   set.seed(randomSeed)
   gammaVariables <- stats::rgamma(n = length(dts), shape=(1/nu)*dts, scale=nu)
@@ -173,6 +173,18 @@ simulateVarianceGamma <- function(timeGrid = 1:10,
   varianceGammaProcess <- theta*c(0,cumsum(gammaVariables))+sigma*brownian
   
   return(list(jumpTimes = ts, levyProcess = varianceGammaProcess))
+}
+
+simulateBrownianMotion <- function(timeGrid = 1:10, 
+                                   mu = 0, 
+                                   sigma = 1, 
+                                   gs = 0.01, 
+                                   randomSeed = 2021) {
+  
+  set.seed(randomSeed)
+  ts <- seq(0,timeGrid[length(timeGrid)],gs)
+  brownian <- cumsum(stats::rnorm(n = length(ts), mean = mu, sd = sigma))
+  return(list(jumpTimes = ts, levyProcess = brownian))
 }
 
 #' helper to calculate simulationPlotData, which is a dataframe with columns
@@ -228,24 +240,41 @@ parseLevySimulationSpecification <- function(shinyInput) {
     
   } else if(simuType == "Varianz-Gamma") {
     
-    return(errorList("Noch nicht implementiert"))
-    
-  } else if(simuType == "Brownsche Bewegung") {
-    
-    n <- as.integer(shinyInput$levySimuBBnr)
-    if(is.na(n)) return(errorList("Ungültige Eingabe in der Anzahl"))
-    mu <- as.numeric(shinyInput$levySimuBBmu)
-    if(is.na(mu)) return(errorList("Ungültige Eingabe im Mittelwert."))
-    sig <- as.numeric(shinyInput$levySimuBBsd)
-    if(is.na(sig)) eturn(errorList("Ungültige Eingabe in der Standaradabweichung"))
+    sigma <- as.numeric(shinyInput$levySimuVGsigma)
+    if(is.na(sigma) ) return(errorList("Ungültiges sigma"))
+    nu <- as.numeric(shinyInput$levySimuVGnu)
+    if(is.na(nu) ) return(errorList("Ungültiges nu"))
+    theta <- as.numeric(shinyInput$levySimuVGtheta)
+    if(is.na(theta) ) return(errorList("Ungültiges theta"))
+    gs <- as.numeric(shinyInput$levySimuVGgs)
+    if(is.na(gs) ) return(errorList("Ungültiges gs"))
     
     return(list(
       error = NULL,
       simuType = simuType,
       timeGrid = timeGrid,
-      n = n,
+      sigma = sigma,
+      nu = nu,
+      theta = theta,
+      gs = gs
+    ))
+    
+  } else if(simuType == "Brownsche Bewegung") {
+    
+    mu <- as.numeric(shinyInput$levySimuBBmu)
+    if(is.na(mu)) return(errorList("Ungültige Eingabe im Mittelwert."))
+    sigma <- as.numeric(shinyInput$levySimuBBsd)
+    if(is.na(sigma)) eturn(errorList("Ungültige Eingabe in der Standaradabweichung"))
+    gs <- as.numeric(shinyInput$levySimuBBgs)
+    if(is.na(gs) ) return(errorList("Ungültiges gs"))
+    
+    return(list(
+      error = NULL,
+      simuType = simuType,
+      timeGrid = timeGrid,
       mu = mu,
-      sig = sig
+      sigma = sigma,
+      gs = gs
     ))
     
   } else {

@@ -19,7 +19,7 @@ Die App wird durch den R-Funktionsaufruf in der Datei `acogarchSimulation.R` ges
 ### Funktionalität der App
 Die App bietet folgende Funktionalität... TODO.
 
-#### Simulationen
+#### APARCH-Simulationen
 In der App können zeitdiskrete und zeitstetige APARCH(1,1)-Modelle simuliert werden. 
 Bisher ist nur das zeitdiskrete Modell implmentiert. 
 ##### Diskrete Simulation
@@ -35,6 +35,17 @@ Diese sind
 #### Schätzung
 In der Schätzung kann ein Datensatz aus den historischen Daten der Webseite nasdaq.com geschätzt werden. Die Daten des S&P500 gibt es z.B. unter https://www.nasdaq.com/market-activity/index/spx/historical als csv-Download. In der Suchleiste `Search for Historical Data` können beliebige Titel gesucht werden. Sodann klickt man in der Übersicht auf den gewünschten Zeitraum (am besten `MAX`) und auf den `Download Data`-Button. Testweise stehen im Repository im Ordner `nasdaqCsvExampleData` drei csv-Dateien zur Verfügung: Tesla, S&P500, LVMH. 
 Die Parameterschätzung ist bisher noch nicht implementiert. Wenn man einen Datensatz importiert, so werden bisher erstmal nur der Verlauf der Preise und die Log-Returns über den gesamten Zeitraum dargestellt. 
+
+
+#### Lévysimulation
+In der Lévysimulation können verschiedene Lévyprozesse simuliert werden. Diese sind
+- Compound Poisson
+- Varianz-Gamma
+- Brownsche Bewegung
+
+Die entsprechenden Parameter zur Spezifikation der Prozesse können in der Sidebar eingestellt werden.
+
+
 
 ### Inhalt des Repositories
 | Datei | Beschreibung |

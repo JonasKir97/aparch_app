@@ -1,8 +1,8 @@
 #' create a basic line plot with ggplot and fitting theme for the app
-basicLinePlot <- function(x, y, plotTitle = NULL, xLabel = NULL, yLabel = NULL) {
+basicLinePlot <- function(x, y, plotTitle = NULL, xLabel = NULL, yLabel = NULL, lineColor = "white") {
   
   pd <- data.frame(x=x,y=y)
-  p <- ggplot(pd) + geom_line(mapping = aes(x=x,y=y), col = "white")
+  p <- ggplot(pd) + geom_line(mapping = aes(x=x,y=y), col = lineColor)
   p <- p + labs(x = xLabel, y = yLabel, title = plotTitle)
   p <- p + darkPlotTheme()
   return(p)
@@ -138,3 +138,62 @@ singleLineHighchart <- function(x,y,xLabel = NULL, yLabel = NULL,plotTitle = NUL
   hc
 }
 
+
+generateCompoundPoissonLevyProcessPlot <- function(levyData, useHighCharts = TRUE) {
+  if(useHighCharts) {
+    pd <- data.frame(x = rep(levyData$jumpTimes,2), 
+                     y = c(levyData$levyProcess,levyData$levyJumps), 
+                     Prozess = rep(c("Compound Poisson","Sprünge"),each = length(levyData[[1]])), stringsAsFactors = FALSE)
+    
+    
+    hc <- groupedLineHighchart(plotData = pd, xColumn = "x", yColumn = "y", colorColumn = "Prozess") %>% 
+      hc_colors(colors = c("white","lightblue"))
+    
+    return(list(
+      hc = hc
+    ))
+  } else {
+    processData <- data.frame(x=levyData$jumpTimes, y = levyData$levyProcess)
+    
+    processPlot <- ggplot(processData) + geom_step(mapping = aes(x=x,y=y), color="white") + darkPlotTheme()
+    processPlot <- processPlot + labs(x="Zeit",y="Wert",title ="Verlauf des simulierten Compound Poisson")
+    
+    
+    jumpData <- data.frame(x=levyData$jumpTimes, y = levyData$levyJumps)
+    jumpPlot <- ggplot(jumpData) + geom_step(mapping = aes(x=x,y=y), color="white") + darkPlotTheme()
+    jumpPlot <- jumpPlot + labs(x="Zeit",y="Wert",title ="Verlauf der Sprünge des simulierten Compound Poisson")
+    
+    return(list(
+      processPlot = processPlot,
+      jumpPlot = jumpPlot
+    ))
+  }
+}
+
+generateVarianceGammaLevyProcessPlot <- function(levyData, useHighCharts = TRUE) {
+  if(useHighCharts) {
+    vgPlot <- singleLineHighchart(x = levyData$jumpTimes, y = levyData$levyProcess, 
+                              xLabel = "Zeit", yLabel = "VG-Prozess", 
+                              plotTitle = "Verlauf des simulierten Varianz-Gamma-Prozesses") %>% 
+      hc_colors(colors = "white")
+  } else {
+    vgPlot <- basicLinePlot(x = levyData$jumpTimes, y = levyData$levyProcess, 
+                            xLabel = "Zeit", yLabel = "VG-Prozess", lineColor = "white",
+                            plotTitle = "Verlauf des simulierten Varianz-Gamma-Prozesses")
+  }
+  return(vgPlot)
+} 
+
+generateBrownianLevyProcessPlot <- function(levyData, useHighCharts = TRUE) {
+  if(useHighCharts) {
+    bbPlot <- singleLineHighchart(x = levyData$jumpTimes, y = levyData$levyProcess, 
+                                  xLabel = "Zeit", yLabel = "BB", 
+                                  plotTitle = "Verlauf der Simulaierten Brownschen Bewegung") %>% 
+      hc_colors(colors = "white")
+  } else {
+    bbPlot <- basicLinePlot(x = levyData$jumpTimes, y = levyData$levyProcess, 
+                            xLabel = "Zeit", yLabel = "BB", lineColor = "white",
+                            plotTitle = "Verlauf der Simulaierten Brownschen Bewegung")
+  }
+  return(bbPlot)
+} 
