@@ -205,3 +205,50 @@ calculateDiscreteSimulationPlotData <- function(discreteSimulationParameterList,
   simulationPlotData <- do.call("rbind",do.call("c",simulationDataList))
   return(simulationPlotData)
 }
+
+#' helper to parse input for levy simulation
+parseLevySimulationSpecification <- function(shinyInput) {
+  simuType <- shinyInput$levySimulationType
+  errorList <- function(e) return(list(error=e))
+  
+  timeGrid <- shinyInput$levySimuTimeGrid
+  timeGrid <- as.numeric(strsplit(timeGrid,":")[[1]])
+  timeGrid <- timeGrid[1]:timeGrid[2]
+  
+  if(simuType == "Compound Poisson") {
+    lambda <- as.numeric(shinyInput$levySimuCPlambda)
+    if(is.na(lambda) || lambda <= 0) return(errorList("Ungültige Sprungrate Lambda"))
+    
+    return(list(
+      error = NULL,
+      simuType = simuType,
+      timeGrid = timeGrid,
+      lambda = lambda
+    ))
+    
+  } else if(simuType == "Varianz-Gamma") {
+    
+    return(errorList("Noch nicht implementiert"))
+    
+  } else if(simuType == "Brownsche Bewegung") {
+    
+    n <- as.integer(shinyInput$levySimuBBnr)
+    if(is.na(n)) return(errorList("Ungültige Eingabe in der Anzahl"))
+    mu <- as.numeric(shinyInput$levySimuBBmu)
+    if(is.na(mu)) return(errorList("Ungültige Eingabe im Mittelwert."))
+    sig <- as.numeric(shinyInput$levySimuBBsd)
+    if(is.na(sig)) eturn(errorList("Ungültige Eingabe in der Standaradabweichung"))
+    
+    return(list(
+      error = NULL,
+      simuType = simuType,
+      timeGrid = timeGrid,
+      n = n,
+      mu = mu,
+      sig = sig
+    ))
+    
+  } else {
+    return(errorList("Ungültiger Lévyprozess ausgewählt."))
+  }
+}

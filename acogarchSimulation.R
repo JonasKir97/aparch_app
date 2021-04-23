@@ -8,7 +8,8 @@ aCOGARCH_SimulationApp <- function() {
   #Tags und Styling----
   additionalTags <- c("#specificationErrorText{color:white;font-size:14px;background-color:red}",
                       "#simulationErrorText{color:white;font-size:14px;background-color:red}",
-                      "#calculateSimulation{background-color:#df691a}")
+                      "#calculateSimulation{background-color:#df691a}",
+                      "#simulateLevy{background-color:#df691a}")
   
   #Sidebar----
   aCOGARCH_SimulationApp_UI <- uiWrapper(
@@ -16,8 +17,8 @@ aCOGARCH_SimulationApp <- function() {
     uiElement = fluidPage(
       sidebarLayout(
         sidebarPanel(
+          #_Simulation----
           conditionalPanel(condition = "input.mainTabPanel == 'Simulation' ",
-                           #_Simulation----
                            h1c("Simulation"),
                            radioButtons(inputId = "simulationType", label = "Simulationsart", 
                                         choices = c("Diskret","Stetig"), inline = TRUE),
@@ -45,13 +46,22 @@ aCOGARCH_SimulationApp <- function() {
                            shiny::p(""),
                            verbatimTextOutput(outputId = "simulationErrorText")
           ),
+          #_Schätzung----
           conditionalPanel(condition = " input.mainTabPanel == 'Schätzung' ",
-                           #_Schätzung----
                            h1c("Schätzung"),
                            shiny::p("Hier wird eine Schätzung des ACOGARCH mittels PMLE durchgeführt."),
                            shiny::fileInput(inputId = "nasdaqCsvFile", label = "CSV Import (Dateien von nsdaq.com)",
                                             multiple = FALSE, accept = ".csv", placeholder = "csv-Datei auswählen.", 
                                             buttonLabel = "Import csv")
+          ),
+          #_Lévysimulation-----
+          conditionalPanel(condition = " input.mainTabPanel == 'Lévysimulation' ",
+                           h1c("Lévysimulation"),
+                           selectizeInput(inputId = "levySimulationType", label = "Art des Lévyprozesses",
+                                          choices = c("Compound Poisson","Varianz-Gamma","Brownsche Bewegung")),
+                           textInput(inputId = "levySimuTimeGrid", label = "Zeitgitter der Simulation", value = "1:100"),
+                           uiOutput(outputId = "levySimulationSpecificationUI"),
+                           actionButton(inputId = "simulateLevy", label = "Simulieren", width = "100%")
           )
         ),
         #Mainpanel----
@@ -62,6 +72,9 @@ aCOGARCH_SimulationApp <- function() {
             ),
             tabPanel(title = "Schätzung",
                      uiOutput(outputId = "estimationDataPlotUI"),
+            ),
+            tabPanel(title = "Lévysimulation",
+                     uiOutput(outputId = "levySimulationMainUI"),
             ),
             id = "mainTabPanel", 
             type = "pills"
@@ -230,6 +243,69 @@ aCOGARCH_SimulationApp <- function() {
       
       output$estimationDataPlotUI <- renderUI(estimationDataPlotUI)
     })
+    
+    
+    #LEVYSIMULATION-----
+    observeEvent(input$levySimulationType, {
+      simuType <- input$levySimulationType
+      
+      if(simuType == "Compound Poisson") {
+        levySimulationSpecificationUI <- tagList(
+          numericInput(inputId = "levySimuCPlambda", label = "Rate Lambda der Interarrival times", value = 1),
+          shiny::p("Die Sprünge werden erstmal nur als N(0,1)-verteilt simuliert. Das wird noch erweitert.")
+        )
+      } else if(simuType == "Varianz-Gamma") {
+        
+        levySimulationSpecificationUI <- shiny::p("VG")
+      } else if(simuType == "Brownsche Bewegung") {
+        
+        levySimulationSpecificationUI <- tagList(
+          numericInput(inputId = "levySimuBBnr", label = "Anzahl innerhalb des Zeitgitters", value = 1000),
+          fluidRow(
+            column(6, numericInput(inputId = "levySimuBBmu", label = "Mittelwert", value = 0)),
+            column(6, numericInput(inputId = "levySimuBBsd", label = "Standardabweichung", value = 1))
+          )
+        )
+      } else {
+        output$simuSpecificationErrorText <- renderText("Ungültiger Lévyprozess ausgewählt.")
+        return(verbatimTextOutput(outputId = "simuSpecificationErrorText"))
+      }
+      
+      output$levySimulationSpecificationUI <- renderUI(levySimulationSpecificationUI)
+    })
+
+    
+    observeEvent(input$simulateLevy, {
+      simulationSpecs <- parseLevySimulationSpecification(shinyInput = input)
+      
+      if(!is.null(simulationSpecs$error)) {
+        return()
+      }
+      
+      timeGrid <- simulationSpecs$timeGrid
+      simuType <- simulationSpecs$simuType
+      
+      if(simuType == "Compound Poisson") {
+        levyData <- simulateCompoundPoisson(timeGrid = timeGrid, lambda = simulationSpecs$lambda, randomSeed = sample(1:10000,1))
+        
+        pd <- data.frame(x=levyData$jumpTimes, y = levyData$levyProcess)
+        
+        cpPlot <- ggplot(pd) + geom_step(mapping = aes(x=x,y=y), color="white") + darkPlotTheme()
+        cpPlot <- cpPlot + labs(x="Zeit",y="Wert",title ="Verlauf des simulierten Compound Poisson")
+        
+        output$cpPlot <- renderPlot(cpPlot)
+        
+        levySimulationMainUI <- plotOutput(outputId = "cpPlot", height = 600)
+        
+      } else {
+        warning("Noch nicht implementiert")
+        return()
+      }
+      
+      output$levySimulationMainUI <- renderUI(levySimulationMainUI)
+    })
+    
+    
     
   } #end server
   
