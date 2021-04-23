@@ -6,7 +6,7 @@ Voraussetzung für diese App ist eine aktuelle R-Version (https://www.r-project.
 ### Start der App
 Es wird eine bestehende Internetverbindung vorausgesetzt.
 ### Neu
-Um die App zu starten, muss die Datei `appStarter.R` ausgeführt werden. Dazu muss sie heruntergalden und im `RStudio` durchgeklickt werden, oder man startet sie von der Kommandozeile (Die Kommandozeile wird beispielsweise geöffnet mit: Windows-Taste + R, dann `cmd` eingeben, Bestätigen mit `Enter`) über den Befehl `RScript Pfad/Zur/appStarter.R`.
+Um die App zu starten, muss die Datei `appStarter.R` ausgeführt werden. Dazu muss sie heruntergeladen und im `RStudio` durchgeklickt werden, oder man startet sie von der Kommandozeile (Die Kommandozeile wird beispielsweise geöffnet mit: Windows-Taste + R, dann `cmd` eingeben, Bestätigen mit `Enter`) über den Befehl `RScript Pfad/Zur/appStarter.R`.
 
 ### Alt
 Zunächst muss das Repository heruntergeladen werden. Dazu einfach das Repository per git clonen oder als ZIP herunterladen (dazu in diesem Browserfenster über den Dateien auf den grünen Button mit der Aufschrift `Code` klicken und dann `Download ZIP` auswählen) und entpacken.
