@@ -1,12 +1,15 @@
 #SIMULATIONSAPP----
 aCOGARCH_SimulationApp <- function() {
   
-  setGermanHighChartOptions()
+  useHighCharts <- TRUE
+  
+  if(useHighCharts) setGermanHighChartOptions()
   
   #Tags und Styling----
   additionalTags <- c("#specificationErrorText{color:white;font-size:14px;background-color:red}",
                       "#simulationErrorText{color:white;font-size:14px;background-color:red}",
-                      "#calculateSimulation{background-color:#df691a}")
+                      "#calculateSimulation{background-color:#df691a}",
+                      "#simulateLevy{background-color:#df691a}")
   
   #Sidebar----
   aCOGARCH_SimulationApp_UI <- uiWrapper(
@@ -14,8 +17,8 @@ aCOGARCH_SimulationApp <- function() {
     uiElement = fluidPage(
       sidebarLayout(
         sidebarPanel(
+          #_Simulation----
           conditionalPanel(condition = "input.mainTabPanel == 'Simulation' ",
-                           #_Simulation----
                            h1c("Simulation"),
                            radioButtons(inputId = "simulationType", label = "Simulationsart", 
                                         choices = c("Diskret","Stetig"), inline = TRUE),
@@ -43,13 +46,22 @@ aCOGARCH_SimulationApp <- function() {
                            shiny::p(""),
                            verbatimTextOutput(outputId = "simulationErrorText")
           ),
+          #_Schätzung----
           conditionalPanel(condition = " input.mainTabPanel == 'Schätzung' ",
-                           #_Schätzung----
                            h1c("Schätzung"),
                            shiny::p("Hier wird eine Schätzung des ACOGARCH mittels PMLE durchgeführt."),
                            shiny::fileInput(inputId = "nasdaqCsvFile", label = "CSV Import (Dateien von nsdaq.com)",
                                             multiple = FALSE, accept = ".csv", placeholder = "csv-Datei auswählen.", 
                                             buttonLabel = "Import csv")
+          ),
+          #_Lévysimulation-----
+          conditionalPanel(condition = " input.mainTabPanel == 'Lévysimulation' ",
+                           h1c("Lévysimulation"),
+                           selectizeInput(inputId = "levySimulationType", label = "Art des Lévyprozesses",
+                                          choices = c("Compound Poisson","Varianz-Gamma","Brownsche Bewegung")),
+                           textInput(inputId = "levySimuTimeGrid", label = "Zeitgitter der Simulation", value = "1:100"),
+                           uiOutput(outputId = "levySimulationSpecificationUI"),
+                           actionButton(inputId = "simulateLevy", label = "Simulieren", width = "100%")
           )
         ),
         #Mainpanel----
@@ -59,9 +71,10 @@ aCOGARCH_SimulationApp <- function() {
                      uiOutput(outputId = "simulationPlotUI")
             ),
             tabPanel(title = "Schätzung",
-                     # withSpinner(plotOutput(outputId = "estimationOriginalPricePlot")),
-                     # withSpinner(plotOutput(outputId = "estimationOriginalLogReturnPlot")),
-                     withSpinner(highchartOutput(outputId = "estimationOriginalDataChart", height = 600))
+                     uiOutput(outputId = "estimationDataPlotUI"),
+            ),
+            tabPanel(title = "Lévysimulation",
+                     uiOutput(outputId = "levySimulationMainUI"),
             ),
             id = "mainTabPanel", 
             type = "pills"
@@ -126,61 +139,48 @@ aCOGARCH_SimulationApp <- function() {
           return()
         }
         
-        theta <- discreteSimulationParameterList$theta
-        alpha <- discreteSimulationParameterList$alpha
-        beta <- discreteSimulationParameterList$beta
-        
         steps <- discreteSimulationParameterList$steps
         
         noises <- rnorm(n = steps, mean = 0,sd = 1)
         
-        # noisePlot <- basicLinePlot(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises", 
-        #                            xLabel = "Index", yLabel = "Verlauf der Noises")
+        simulationPlotData <- calculateDiscreteSimulationPlotData(discreteSimulationParameterList = discreteSimulationParameterList, 
+                                                                  noises = noises)
         
-        noisePlot <- singleLineHighchart(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises", 
-                                         xLabel = "Index", yLabel = "Verlauf der Noises")
-        
-        simulationDataList <- lapply(discreteSimulationParameterList$deltaVec, function(delta) {
-          lapply(discreteSimulationParameterList$gammaVec, function(gamma) {
-            simulationData <- simulateDiscreteAPARCH11(steps = steps, alpha = alpha, beta = beta,
-                                                       theta = theta, gamma = gamma, delta = delta, 
-                                                       noiseGenerator = NULL, fixedNoises = noises, useCPP = TRUE)
-            data.frame(x = 1:length(simulationData$sigmaDelta),
-                       sigmaDelta = simulationData$sigmaDelta, 
-                       Y = simulationData$Y,
-                       Simulation = paste0("Delta=",delta,",Gamma=",gamma), 
-                       stringsAsFactors = FALSE)
-          })
-        })
-        
-        simulationPlotData <- do.call("rbind",do.call("c",simulationDataList))
-        
-        yPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "Y", colorColumn = "Simulation",
+        if(useHighCharts) {#Plots as Highcharts
+          noisePlot <- singleLineHighchart(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises", 
+                                           xLabel = "Index", yLabel = "Verlauf der Noises")
+          
+          yPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "Y", colorColumn = "Simulation",
+                                        xLabel = "Index", yLabel = "Y", plotTitle = "Verlauf des Prozesses Y")
+          
+          sigmaDeltaPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "sigmaDelta", 
+                                                 colorColumn = "Simulation", xLabel = "Index", yLabel = "sigma^delta", 
+                                                 plotTitle = "Verlauf des Prozesses sigma^delta")
+          plotRenderer <- renderHighchart
+          plotPutter <- highchartOutput
+        } else { #Plots as ggplots
+          noisePlot <- basicLinePlot(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises",
+                                     xLabel = "Index", yLabel = "Verlauf der Noises")
+          
+          yPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "Y", colorColumn = "Simulation",
                                       xLabel = "Index", yLabel = "Y", plotTitle = "Verlauf des Prozesses Y")
+          yPlot <- yPlot + theme(legend.position=c(0.8,0.9))
+          
+          sigmaDeltaPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "sigmaDelta", colorColumn = "Simulation",
+                                               xLabel = "Index", yLabel = "sigma^delta", plotTitle = "Verlauf des Prozesses sigma^delta")
+          sigmaDeltaPlot <- sigmaDeltaPlot + theme(legend.position=c(0.8,0.9))
+          plotRenderer <- renderPlot
+          plotPutter <- plotOutput
+        }
         
-        # yPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "Y", colorColumn = "Simulation", 
-        #                             xLabel = "Index", yLabel = "Y", plotTitle = "Verlauf des Prozesses Y")
-        # yPlot <- yPlot + theme(legend.position=c(0.8,0.9))
-        
-        sigmaDeltaPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "sigmaDelta", 
-                                               colorColumn = "Simulation", xLabel = "Index", yLabel = "sigma^delta", 
-                                               plotTitle = "Verlauf des Prozesses sigma^delta")
-        # sigmaDeltaPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "sigmaDelta", colorColumn = "Simulation", 
-        #                                      xLabel = "Index", yLabel = "sigma^delta", plotTitle = "Verlauf des Prozesses sigma^delta")
-        # sigmaDeltaPlot <- sigmaDeltaPlot + theme(legend.position=c(0.8,0.9))
-        
-        # output$noisePlot <- renderPlot(noisePlot + darkPlotTheme())
-        # output$yPlot <- renderPlot(yPlot + darkPlotTheme())
-        # output$sigmaDeltaPlot <- renderPlot(sigmaDeltaPlot + darkPlotTheme())
-        
-        output$noisePlot <- renderHighchart(noisePlot)
-        output$yPlot <- renderHighchart(yPlot)
-        output$sigmaDeltaPlot <- renderHighchart(sigmaDeltaPlot)
+        output$noisePlot <- plotRenderer(noisePlot)
+        output$yPlot <- plotRenderer(yPlot)
+        output$sigmaDeltaPlot <- plotRenderer(sigmaDeltaPlot)
         
         simulationPlotUI <- tagList(
-          withSpinner(highchartOutput(outputId = "noisePlot")),
-          withSpinner(highchartOutput(outputId = "yPlot")),
-          withSpinner(highchartOutput(outputId = "sigmaDeltaPlot"))
+          withSpinner(plotPutter(outputId = "noisePlot")),
+          withSpinner(plotPutter(outputId = "yPlot")),
+          withSpinner(plotPutter(outputId = "sigmaDeltaPlot"))
         )
         
       } else if(input$simulationType == "Stetig") {
@@ -199,10 +199,6 @@ aCOGARCH_SimulationApp <- function() {
     
     
     #csv-Import----
-    # output$estimationOriginalPricePlot <- renderPlot(darkEmptyPlot())
-    # output$estimationOriginalLogReturnPlot <- renderPlot(darkEmptyPlot())
-    output$estimationOriginalDataChart <- renderHighchart(NULL)
-    
     observeEvent(input$nasdaqCsvFile, {
       
       if(is.null(input$nasdaqCsvFile)) {
@@ -211,21 +207,105 @@ aCOGARCH_SimulationApp <- function() {
       }
       
       priceData <- nasdaqDataReader(input$nasdaqCsvFile$datapath)
-      # pricePlot <- basicLinePlot(x = priceData$day, y = priceData$price, 
-      #                            plotTitle = paste0("Verlauf der Preise von ",input$nasdaqCsvFile$name),
-      #                            xLabel = "Datum", yLabel ="Preis")
-      # logReturnPlot <-basicLinePlot(x = priceData$day, y = priceData$logReturn, 
-      #                               plotTitle = paste0("Verlauf der Log-Returns von ",input$nasdaqCsvFile$name),
-      #                               xLabel = "Datum", yLabel ="Log-Return")
-      # 
-      # output$estimationOriginalPricePlot <- renderPlot(pricePlot)
-      # output$estimationOriginalLogReturnPlot <- renderPlot(logReturnPlot)
       
-      output$estimationOriginalDataChart <- renderHighchart({
-        pltTitle <- paste0("Verlauf der Preise und Log-Returns von ",input$nasdaqCsvFile$name)
-        stockHighchartFromCleanNasdaqData(cleanData = priceData, plotTitle = pltTitle)
-      })
+      if(useHighCharts) {
+        output$estimationOriginalDataChart <- renderHighchart({
+          pltTitle <- paste0("Verlauf der Preise und Returns von ",input$nasdaqCsvFile$name)
+          stockHighchartFromCleanNasdaqData(cleanData = priceData, plotTitle = pltTitle)
+        })
+        estimationDataPlotUI <- tagList(
+          withSpinner(highchartOutput(outputId = "estimationOriginalDataChart", height = 600))
+        )
+        
+      } else {
+        pricePlot <- basicLinePlot(x = priceData$day, y = priceData$price,
+                                   plotTitle = paste0("Verlauf der Preise von ",input$nasdaqCsvFile$name),
+                                   xLabel = "Datum", yLabel ="Preis")
+        
+        returnPlotData <- data.frame(x = rep(priceData$day,2), 
+                                     y = c(priceData$Return,priceData$logReturn), 
+                                     Returnart = rep(c("Return","Log-Return"),each=NROW(priceData)), 
+                                     stringsAsFactors = FALSE)
+        
+        returnPlot <- basicMultiLinePlot(plotData = returnPlotData, xColumn = "x", yColumn = "y", colorColumn = "Returnart", 
+                                         xLabel = "Datum", yLabel = "Return", legendTitle = "Art der Returns", 
+                                         plotTitle = paste0("Verlauf der Returns von ",input$nasdaqCsvFile$name))
+        returnPlot <- returnPlot + theme(legend.position=c(0.8,0.9))
+        
+        output$estimationOriginalPricePlot <- renderPlot(pricePlot)
+        output$estimationOriginalReturnPlot <- renderPlot(returnPlot)
+        estimationDataPlotUI <- tagList(
+          withSpinner(plotOutput(outputId = "estimationOriginalPricePlot")),
+          withSpinner(plotOutput(outputId = "estimationOriginalReturnPlot"))
+        )
+        
+      }
+      
+      output$estimationDataPlotUI <- renderUI(estimationDataPlotUI)
     })
+    
+    
+    #LEVYSIMULATION-----
+    observeEvent(input$levySimulationType, {
+      simuType <- input$levySimulationType
+      
+      if(simuType == "Compound Poisson") {
+        levySimulationSpecificationUI <- tagList(
+          numericInput(inputId = "levySimuCPlambda", label = "Rate Lambda der Interarrival times", value = 1),
+          shiny::p("Die Sprünge werden erstmal nur als N(0,1)-verteilt simuliert. Das wird noch erweitert.")
+        )
+      } else if(simuType == "Varianz-Gamma") {
+        
+        levySimulationSpecificationUI <- shiny::p("VG")
+      } else if(simuType == "Brownsche Bewegung") {
+        
+        levySimulationSpecificationUI <- tagList(
+          numericInput(inputId = "levySimuBBnr", label = "Anzahl innerhalb des Zeitgitters", value = 1000),
+          fluidRow(
+            column(6, numericInput(inputId = "levySimuBBmu", label = "Mittelwert", value = 0)),
+            column(6, numericInput(inputId = "levySimuBBsd", label = "Standardabweichung", value = 1))
+          )
+        )
+      } else {
+        output$simuSpecificationErrorText <- renderText("Ungültiger Lévyprozess ausgewählt.")
+        return(verbatimTextOutput(outputId = "simuSpecificationErrorText"))
+      }
+      
+      output$levySimulationSpecificationUI <- renderUI(levySimulationSpecificationUI)
+    })
+    
+    
+    observeEvent(input$simulateLevy, {
+      simulationSpecs <- parseLevySimulationSpecification(shinyInput = input)
+      
+      if(!is.null(simulationSpecs$error)) {
+        return()
+      }
+      
+      timeGrid <- simulationSpecs$timeGrid
+      simuType <- simulationSpecs$simuType
+      
+      if(simuType == "Compound Poisson") {
+        levyData <- simulateCompoundPoisson(timeGrid = timeGrid, lambda = simulationSpecs$lambda, randomSeed = sample(1:10000,1))
+        
+        pd <- data.frame(x=levyData$jumpTimes, y = levyData$levyProcess)
+        
+        cpPlot <- ggplot(pd) + geom_step(mapping = aes(x=x,y=y), color="white") + darkPlotTheme()
+        cpPlot <- cpPlot + labs(x="Zeit",y="Wert",title ="Verlauf des simulierten Compound Poisson")
+        
+        output$cpPlot <- renderPlot(cpPlot)
+        
+        levySimulationMainUI <- plotOutput(outputId = "cpPlot", height = 600)
+        
+      } else {
+        warning("Noch nicht implementiert")
+        return()
+      }
+      
+      output$levySimulationMainUI <- renderUI(levySimulationMainUI)
+    })
+    
+    
     
   } #end server
   

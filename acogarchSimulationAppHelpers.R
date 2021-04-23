@@ -1,5 +1,5 @@
 #' helper to validate the inputs for the discrete simulation of an APARCH(1,1)-process
-validateAndProcessDiscreteSimulationInput <- function(shinyInputObject) {
+validateAndProcessDiscreteSimulationInput <- function(shinyInputObject, maxSteps = NULL) {
   deltas <- shinyInputObject$deltaDiscrete #Zeichenkette, ggf kommagetrennt für mehrere Simulationen mit variierenden Delta
   deltas <- as.numeric(strsplit(deltas, ",")[[1]])
   if(any(is.na(deltas)) || any(deltas <=0)) {#Konvertierung in Numerisch ging an mindestens einer Stelle schief, Fehler ausgeben
@@ -31,8 +31,8 @@ validateAndProcessDiscreteSimulationInput <- function(shinyInputObject) {
     return(list(errorText = "Ungültige Eingabe in der Länge der Simulation."))
   }
   
-  if(steps>1e4) {
-    return(list(errorText = "Bitte eine kürzere Länge der Simulation (<10000) angeben."))
+  if(length(maxSteps) && steps>maxSteps) {
+    return(list(errorText = paste0("Bitte eine kürzere Länge der Simulation (<=",maxSteps,") angeben.")))
   }
   
   return(
@@ -173,4 +173,82 @@ simulateVarianceGamma <- function(timeGrid = 1:10,
   varianceGammaProcess <- theta*c(0,cumsum(gammaVariables))+sigma*brownian
   
   return(list(jumpTimes = ts, levyProcess = varianceGammaProcess))
+}
+
+#' helper to calculate simulationPlotData, which is a dataframe with columns
+#' \code{x} : the x-Axis
+#' \code{sigmaDelta} : the simulated process sigma^Delta
+#' \code{Y} : the simulated process Y
+#' \code{Simulation} : The simulation name, which is the setting of the parameters gamma and delta
+calculateDiscreteSimulationPlotData <- function(discreteSimulationParameterList, noises) {
+  
+  simulationDataList <- lapply(discreteSimulationParameterList$deltaVec, function(delta) {
+    lapply(discreteSimulationParameterList$gammaVec, function(gamma) {
+      simulationData <- simulateDiscreteAPARCH11(steps = discreteSimulationParameterList$steps, 
+                                                 alpha = discreteSimulationParameterList$alpha, 
+                                                 beta = discreteSimulationParameterList$beta,
+                                                 theta = discreteSimulationParameterList$theta, 
+                                                 gamma = gamma, 
+                                                 delta = delta, 
+                                                 noiseGenerator = NULL, 
+                                                 fixedNoises = noises, 
+                                                 useCPP = TRUE)
+      
+      data.frame(x = 1:length(simulationData$sigmaDelta),
+                 sigmaDelta = simulationData$sigmaDelta, 
+                 Y = simulationData$Y,
+                 Simulation = paste0("Delta=",delta,",Gamma=",gamma), 
+                 stringsAsFactors = FALSE)
+    })
+  })
+  
+  simulationPlotData <- do.call("rbind",do.call("c",simulationDataList))
+  return(simulationPlotData)
+}
+
+#' helper to parse input for levy simulation
+parseLevySimulationSpecification <- function(shinyInput) {
+  simuType <- shinyInput$levySimulationType
+  errorList <- function(e) return(list(error=e))
+  
+  timeGrid <- shinyInput$levySimuTimeGrid
+  timeGrid <- as.numeric(strsplit(timeGrid,":")[[1]])
+  timeGrid <- timeGrid[1]:timeGrid[2]
+  
+  if(simuType == "Compound Poisson") {
+    lambda <- as.numeric(shinyInput$levySimuCPlambda)
+    if(is.na(lambda) || lambda <= 0) return(errorList("Ungültige Sprungrate Lambda"))
+    
+    return(list(
+      error = NULL,
+      simuType = simuType,
+      timeGrid = timeGrid,
+      lambda = lambda
+    ))
+    
+  } else if(simuType == "Varianz-Gamma") {
+    
+    return(errorList("Noch nicht implementiert"))
+    
+  } else if(simuType == "Brownsche Bewegung") {
+    
+    n <- as.integer(shinyInput$levySimuBBnr)
+    if(is.na(n)) return(errorList("Ungültige Eingabe in der Anzahl"))
+    mu <- as.numeric(shinyInput$levySimuBBmu)
+    if(is.na(mu)) return(errorList("Ungültige Eingabe im Mittelwert."))
+    sig <- as.numeric(shinyInput$levySimuBBsd)
+    if(is.na(sig)) eturn(errorList("Ungültige Eingabe in der Standaradabweichung"))
+    
+    return(list(
+      error = NULL,
+      simuType = simuType,
+      timeGrid = timeGrid,
+      n = n,
+      mu = mu,
+      sig = sig
+    ))
+    
+  } else {
+    return(errorList("Ungültiger Lévyprozess ausgewählt."))
+  }
 }
