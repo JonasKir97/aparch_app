@@ -4,7 +4,7 @@ aCOGARCH_SimulationApp <- function() {
   useHighCharts <- TRUE
   
   if(useHighCharts) setGermanHighChartOptions()
-  
+
   #Tags und Styling----
   additionalTags <- c("#specificationErrorText{color:white;font-size:14px;background-color:red}",
                       "#simulationErrorText{color:white;font-size:14px;background-color:red}",
@@ -273,7 +273,6 @@ aCOGARCH_SimulationApp <- function() {
       
       output$levySimulationSpecificationUI <- renderUI(levySimulationSpecificationUI)
     })
-    
     
     observeEvent(input$simulateLevy, {
       simulationSpecs <- parseLevySimulationSpecification(shinyInput = input)
