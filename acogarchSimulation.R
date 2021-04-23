@@ -1,6 +1,8 @@
 #SIMULATIONSAPP----
 aCOGARCH_SimulationApp <- function() {
   
+  setGermanHighChartOptions()
+  
   #Tags und Styling----
   additionalTags <- c("#specificationErrorText{color:white;font-size:14px;background-color:red}",
                       "#simulationErrorText{color:white;font-size:14px;background-color:red}",
@@ -57,8 +59,9 @@ aCOGARCH_SimulationApp <- function() {
                      uiOutput(outputId = "simulationPlotUI")
             ),
             tabPanel(title = "Schätzung",
-                     withSpinner(plotOutput(outputId = "estimationOriginalPricePlot")),
-                     withSpinner(plotOutput(outputId = "estimationOriginalLogReturnPlot"))
+                     # withSpinner(plotOutput(outputId = "estimationOriginalPricePlot")),
+                     # withSpinner(plotOutput(outputId = "estimationOriginalLogReturnPlot")),
+                     withSpinner(highchartOutput(outputId = "estimationOriginalDataChart", height = 600))
             ),
             id = "mainTabPanel", 
             type = "pills"
@@ -111,10 +114,13 @@ aCOGARCH_SimulationApp <- function() {
       set.seed(simulationSeed)
       
       if(input$simulationType == "Diskret") {
+        #__Diskret----
         #Plots Diskret: Noises, Volatilität, Y
         
         #Usereingaben validieren und in passende Form bringen
         discreteSimulationParameterList <- validateAndProcessDiscreteSimulationInput(shinyInputObject = input)
+        output$simulationErrorText <- renderText(discreteSimulationParameterList$errorText)
+        
         if(!is.null(discreteSimulationParameterList$errorText)) {
           warning(discreteSimulationParameterList$errorText)
           return()
@@ -128,8 +134,11 @@ aCOGARCH_SimulationApp <- function() {
         
         noises <- rnorm(n = steps, mean = 0,sd = 1)
         
-        noisePlot <- basicLinePlot(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises", 
-                                   xLabel = "Index", yLabel = "Verlauf der Noises")
+        # noisePlot <- basicLinePlot(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises", 
+        #                            xLabel = "Index", yLabel = "Verlauf der Noises")
+        
+        noisePlot <- singleLineHighchart(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises", 
+                                         xLabel = "Index", yLabel = "Verlauf der Noises")
         
         simulationDataList <- lapply(discreteSimulationParameterList$deltaVec, function(delta) {
           lapply(discreteSimulationParameterList$gammaVec, function(gamma) {
@@ -146,25 +155,36 @@ aCOGARCH_SimulationApp <- function() {
         
         simulationPlotData <- do.call("rbind",do.call("c",simulationDataList))
         
-        yPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "Y", colorColumn = "Simulation", 
-                                    xLabel = "Index", yLabel = "Y", plotTitle = "Verlauf des Prozesses Y")
-        yPlot <- yPlot + theme(legend.position=c(0.8,0.9))
+        yPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "Y", colorColumn = "Simulation",
+                                      xLabel = "Index", yLabel = "Y", plotTitle = "Verlauf des Prozesses Y")
         
-        sigmaDeltaPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "sigmaDelta", colorColumn = "Simulation", 
-                                             xLabel = "Index", yLabel = "sigma^delta", plotTitle = "Verlauf des Prozesses sigma^delta")
-        sigmaDeltaPlot <- sigmaDeltaPlot + theme(legend.position=c(0.8,0.9))
+        # yPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "Y", colorColumn = "Simulation", 
+        #                             xLabel = "Index", yLabel = "Y", plotTitle = "Verlauf des Prozesses Y")
+        # yPlot <- yPlot + theme(legend.position=c(0.8,0.9))
         
-        output$noisePlot <- renderPlot(noisePlot + darkPlotTheme())
-        output$yPlot <- renderPlot(yPlot + darkPlotTheme())
-        output$sigmaDeltaPlot <- renderPlot(sigmaDeltaPlot + darkPlotTheme())
+        sigmaDeltaPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "sigmaDelta", 
+                                               colorColumn = "Simulation", xLabel = "Index", yLabel = "sigma^delta", 
+                                               plotTitle = "Verlauf des Prozesses sigma^delta")
+        # sigmaDeltaPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "sigmaDelta", colorColumn = "Simulation", 
+        #                                      xLabel = "Index", yLabel = "sigma^delta", plotTitle = "Verlauf des Prozesses sigma^delta")
+        # sigmaDeltaPlot <- sigmaDeltaPlot + theme(legend.position=c(0.8,0.9))
+        
+        # output$noisePlot <- renderPlot(noisePlot + darkPlotTheme())
+        # output$yPlot <- renderPlot(yPlot + darkPlotTheme())
+        # output$sigmaDeltaPlot <- renderPlot(sigmaDeltaPlot + darkPlotTheme())
+        
+        output$noisePlot <- renderHighchart(noisePlot)
+        output$yPlot <- renderHighchart(yPlot)
+        output$sigmaDeltaPlot <- renderHighchart(sigmaDeltaPlot)
         
         simulationPlotUI <- tagList(
-          withSpinner(plotOutput(outputId = "noisePlot")),
-          withSpinner(plotOutput(outputId = "yPlot")),
-          withSpinner(plotOutput(outputId = "sigmaDeltaPlot"))
+          withSpinner(highchartOutput(outputId = "noisePlot")),
+          withSpinner(highchartOutput(outputId = "yPlot")),
+          withSpinner(highchartOutput(outputId = "sigmaDeltaPlot"))
         )
         
       } else if(input$simulationType == "Stetig") {
+        #__Stetig----
         #Plots Stetig: Levyprozess L, Sprünge DeltaL, Volatitlität sigma, Returns G
         simulationPlotUI <- tagList(
           shiny::p(" Stetige Simulation")
@@ -179,26 +199,32 @@ aCOGARCH_SimulationApp <- function() {
     
     
     #csv-Import----
-    output$estimationOriginalPricePlot <- renderPlot(darkEmptyPlot())
-    output$estimationOriginalLogReturnPlot <- renderPlot(darkEmptyPlot())
+    # output$estimationOriginalPricePlot <- renderPlot(darkEmptyPlot())
+    # output$estimationOriginalLogReturnPlot <- renderPlot(darkEmptyPlot())
+    output$estimationOriginalDataChart <- renderHighchart(NULL)
     
     observeEvent(input$nasdaqCsvFile, {
       
       if(is.null(input$nasdaqCsvFile)) {
         output$estimationOriginalDataPlot <- renderPlot(odp)
         return()
-      } 
+      }
       
       priceData <- nasdaqDataReader(input$nasdaqCsvFile$datapath)
-      pricePlot <- basicLinePlot(x = priceData$day, y = priceData$price, 
-                                 plotTitle = paste0("Verlauf der Preise von ",input$nasdaqCsvFile$name),
-                                 xLabel = "Datum", yLabel ="Preis")
-      logReturnPlot <-basicLinePlot(x = priceData$day, y = priceData$logReturn, 
-                                    plotTitle = paste0("Verlauf der Log-Returns von ",input$nasdaqCsvFile$name),
-                                    xLabel = "Datum", yLabel ="Log-Return") 
+      # pricePlot <- basicLinePlot(x = priceData$day, y = priceData$price, 
+      #                            plotTitle = paste0("Verlauf der Preise von ",input$nasdaqCsvFile$name),
+      #                            xLabel = "Datum", yLabel ="Preis")
+      # logReturnPlot <-basicLinePlot(x = priceData$day, y = priceData$logReturn, 
+      #                               plotTitle = paste0("Verlauf der Log-Returns von ",input$nasdaqCsvFile$name),
+      #                               xLabel = "Datum", yLabel ="Log-Return")
+      # 
+      # output$estimationOriginalPricePlot <- renderPlot(pricePlot)
+      # output$estimationOriginalLogReturnPlot <- renderPlot(logReturnPlot)
       
-      output$estimationOriginalPricePlot <- renderPlot(pricePlot)
-      output$estimationOriginalLogReturnPlot <- renderPlot(logReturnPlot)
+      output$estimationOriginalDataChart <- renderHighchart({
+        pltTitle <- paste0("Verlauf der Preise und Log-Returns von ",input$nasdaqCsvFile$name)
+        stockHighchartFromCleanNasdaqData(cleanData = priceData, plotTitle = pltTitle)
+      })
     })
     
   } #end server

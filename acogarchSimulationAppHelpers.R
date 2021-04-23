@@ -3,32 +3,36 @@ validateAndProcessDiscreteSimulationInput <- function(shinyInputObject) {
   deltas <- shinyInputObject$deltaDiscrete #Zeichenkette, ggf kommagetrennt für mehrere Simulationen mit variierenden Delta
   deltas <- as.numeric(strsplit(deltas, ",")[[1]])
   if(any(is.na(deltas)) || any(deltas <=0)) {#Konvertierung in Numerisch ging an mindestens einer Stelle schief, Fehler ausgeben
-    return(list(errorText = "Ungültige Eingabe in den Deltas (Erwarte: Kommagetrennt,Punkt als Dezimalzeichen, größer 0)"))
+    return(list(errorText = "Ungültige Eingabe in den Deltas (Erwarte: Kommagetrennt,Punkt als Dezimalzeichen, größer 0)."))
   }
   
   gammas <- shinyInputObject$gammaDiscrete #Zeichenkette, ggf kommagetrennt für mehrere Simulationen mit variierenden Gamma
   gammas <- as.numeric(strsplit(gammas, ",")[[1]])
   if(any(is.na(gammas)) || any(abs(gammas)>=1)) {
-    return(list(errorText = "Ungültige Eingabe in den Gammas (Erwarte: Kommagetrennt,Punkt als Dezimalzeichen, betragsmäßig kleiner 1)"))
+    return(list(errorText = "Ungültige Eingabe in den Gammas (Erwarte: Kommagetrennt,Punkt als Dezimalzeichen, betragsmäßig kleiner 1)."))
   }
   
   theta <- as.numeric(shinyInputObject$thetaDiscrete)
   if(is.na(theta)) {
-    return(list(errorText = "Ungültige Eingabe im Theta"))
+    return(list(errorText = "Ungültige Eingabe im Theta."))
   }
   
   alpha <- as.numeric(shinyInputObject$alphaDiscrete)
   if(is.na(alpha)) {
-    return(list(errorText = "Ungültige Eingabe im Alpha"))
+    return(list(errorText = "Ungültige Eingabe im Alpha."))
   }
   beta <- as.numeric(shinyInputObject$betaDiscrete)
   if(is.na(beta)) {
-    return(list(errorText = "Ungültige Eingabe im Beta"))
+    return(list(errorText = "Ungültige Eingabe im Beta."))
   }
   
   steps <- as.integer(shinyInputObject$simulationStepsDiscrete)
   if(is.na(steps)) {
-    return(list(errorText = "Ungültige Eingabe in der Länge der Simulation"))
+    return(list(errorText = "Ungültige Eingabe in der Länge der Simulation."))
+  }
+  
+  if(steps>1e4) {
+    return(list(errorText = "Bitte eine kürzere Länge der Simulation (<10000) angeben."))
   }
   
   return(
@@ -47,7 +51,6 @@ validateAndProcessDiscreteSimulationInput <- function(shinyInputObject) {
 h <- function(x,gamma,delta) {
   return((abs(x)-gamma*x)^delta)
 }
-
 
 #' function to simulate a discrete time APARCH(1,1) process
 #' 
