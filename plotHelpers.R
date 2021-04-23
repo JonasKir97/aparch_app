@@ -80,10 +80,11 @@ setGermanHighChartOptions <- function() {
 }
 
 
-stockHighchartFromCleanNasdaqData <- function(cleanData, plotTitle = NULL, priceColor = "white", logReturnColor = "green") {
+stockHighchartFromCleanNasdaqData <- function(cleanData, plotTitle = NULL, priceColor = "white", returnColor = "green") {
   
-  xtsPrices <- xts(x = cleanData$price, order.by = cleanData$day)
-  xtsReturns <- xts(x = cleanData$logReturn, order.by = cleanData$day)
+  xtsPrices <- xts::xts(x = cleanData$price, order.by = cleanData$day)
+  xtsLogReturns <- xts::xts(x = cleanData$logReturn, order.by = cleanData$day)
+  xtsReturns <- xts::xts(x = cleanData$Return, order.by = cleanData$day)
   
   hc <- highchart(type="stock") %>%
     hc_yAxis_multiples(create_yaxis(2, height = c(2, 1), turnopposite = TRUE)) %>% 
@@ -91,7 +92,8 @@ stockHighchartFromCleanNasdaqData <- function(cleanData, plotTitle = NULL, price
   
   hc <- hc %>% 
     hc_add_series(xtsPrices, name = "Preis", yAxis = 0, color = priceColor) %>% 
-    hc_add_series(xtsReturns, name = "Log-Return", yAxis = 1, color = logReturnColor)
+    hc_add_series(xtsLogReturns, name = "Log-Return", yAxis = 1, color = returnColor) %>% 
+    hc_add_series(xtsLogReturns, name = "Return", yAxis = 1, color = returnColor)
   
   hc <- hc %>% hc_rangeSelector(enabled = FALSE)
   
@@ -135,5 +137,4 @@ singleLineHighchart <- function(x,y,xLabel = NULL, yLabel = NULL,plotTitle = NUL
   hc <- hc_add_theme(hc, hc_theme(chart = list(backgroundColor = "#2B3E50")))
   hc
 }
-
 

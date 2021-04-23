@@ -37,8 +37,9 @@ sourceNeededFiles <- function(gitDirectoryPath, sourceCppToo = TRUE) {
   }
   
   if(sourceCppToo) {
-    print("Die folgenden C++ Dateien werden gesourct:")
     cppFiles <- allFiles[grepl("\\.cpp$",allFiles)]
+    print("Die folgenden C++ Dateien werden gesourct:")
+    print(paste0(cppFiles, collapse=", "))
     for(cppFile in cppFiles) {
       print(paste0("Source cpp-Datei ",cppFile,"."))
       Rcpp::sourceCpp(file = cppFile)

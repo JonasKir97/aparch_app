@@ -26,7 +26,8 @@ nasdaqDataReader <- function(filePath) {
   nonZeroPriceIndices <- cleanData$price != 0
   cleanData <- cleanData[nonZeroPriceIndices,]
   
-  cleanData$logReturn <- c(0,log(cleanData$price[2:NROW(cleanData)]) - log(cleanData$price[1:(NROW(cleanData)-1)]))
+  cleanData$Return <- c(0,cleanData$price[-1]/cleanData$price[-NROW(cleanData)] -1)
+  cleanData$logReturn <- c(0,log(cleanData$price[-1]) - log(cleanData$price[-NROW(cleanData)]))
   
   cleanData
 }

@@ -1,5 +1,5 @@
 #' helper to validate the inputs for the discrete simulation of an APARCH(1,1)-process
-validateAndProcessDiscreteSimulationInput <- function(shinyInputObject) {
+validateAndProcessDiscreteSimulationInput <- function(shinyInputObject, maxSteps = NULL) {
   deltas <- shinyInputObject$deltaDiscrete #Zeichenkette, ggf kommagetrennt für mehrere Simulationen mit variierenden Delta
   deltas <- as.numeric(strsplit(deltas, ",")[[1]])
   if(any(is.na(deltas)) || any(deltas <=0)) {#Konvertierung in Numerisch ging an mindestens einer Stelle schief, Fehler ausgeben
@@ -31,8 +31,8 @@ validateAndProcessDiscreteSimulationInput <- function(shinyInputObject) {
     return(list(errorText = "Ungültige Eingabe in der Länge der Simulation."))
   }
   
-  if(steps>1e4) {
-    return(list(errorText = "Bitte eine kürzere Länge der Simulation (<10000) angeben."))
+  if(length(maxSteps) && steps>maxSteps) {
+    return(list(errorText = paste0("Bitte eine kürzere Länge der Simulation (<=",maxSteps,") angeben.")))
   }
   
   return(
@@ -173,4 +173,35 @@ simulateVarianceGamma <- function(timeGrid = 1:10,
   varianceGammaProcess <- theta*c(0,cumsum(gammaVariables))+sigma*brownian
   
   return(list(jumpTimes = ts, levyProcess = varianceGammaProcess))
+}
+
+#' helper to calculate simulationPlotData, which is a dataframe with columns
+#' \code{x} : the x-Axis
+#' \code{sigmaDelta} : the simulated process sigma^Delta
+#' \code{Y} : the simulated process Y
+#' \code{Simulation} : The simulation name, which is the setting of the parameters gamma and delta
+calculateDiscreteSimulationPlotData <- function(discreteSimulationParameterList, noises) {
+  
+  simulationDataList <- lapply(discreteSimulationParameterList$deltaVec, function(delta) {
+    lapply(discreteSimulationParameterList$gammaVec, function(gamma) {
+      simulationData <- simulateDiscreteAPARCH11(steps = discreteSimulationParameterList$steps, 
+                                                 alpha = discreteSimulationParameterList$alpha, 
+                                                 beta = discreteSimulationParameterList$beta,
+                                                 theta = discreteSimulationParameterList$theta, 
+                                                 gamma = gamma, 
+                                                 delta = delta, 
+                                                 noiseGenerator = NULL, 
+                                                 fixedNoises = noises, 
+                                                 useCPP = TRUE)
+      
+      data.frame(x = 1:length(simulationData$sigmaDelta),
+                 sigmaDelta = simulationData$sigmaDelta, 
+                 Y = simulationData$Y,
+                 Simulation = paste0("Delta=",delta,",Gamma=",gamma), 
+                 stringsAsFactors = FALSE)
+    })
+  })
+  
+  simulationPlotData <- do.call("rbind",do.call("c",simulationDataList))
+  return(simulationPlotData)
 }
