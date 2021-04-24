@@ -192,7 +192,7 @@ simulateBrownianMotion <- function(timeGrid = 1:10,
 #' \code{sigmaDelta} : the simulated process sigma^Delta
 #' \code{Y} : the simulated process Y
 #' \code{Simulation} : The simulation name, which is the setting of the parameters gamma and delta
-calculateDiscreteSimulationPlotData <- function(discreteSimulationParameterList, noises) {
+calculateDiscreteSimulationPlotData <- function(discreteSimulationParameterList, noises, useCpp) {
   
   simulationDataList <- lapply(discreteSimulationParameterList$deltaVec, function(delta) {
     lapply(discreteSimulationParameterList$gammaVec, function(gamma) {
@@ -204,7 +204,7 @@ calculateDiscreteSimulationPlotData <- function(discreteSimulationParameterList,
                                                  delta = delta, 
                                                  noiseGenerator = NULL, 
                                                  fixedNoises = noises, 
-                                                 useCPP = TRUE)
+                                                 useCPP = useCpp)
       
       data.frame(x = 1:length(simulationData$sigmaDelta),
                  sigmaDelta = simulationData$sigmaDelta, 

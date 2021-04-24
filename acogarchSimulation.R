@@ -1,8 +1,6 @@
 #SIMULATIONSAPP----
-aCOGARCH_SimulationApp <- function() {
-  
-  useHighCharts <- TRUE
-  
+aCOGARCH_SimulationApp <- function(useHighCharts = TRUE, useCpp = TRUE, portToRun = 2021) {
+    
   if(useHighCharts) setGermanHighChartOptions()
   
   #Tags und Styling----
@@ -148,7 +146,8 @@ aCOGARCH_SimulationApp <- function() {
         noises <- rnorm(n = steps, mean = 0,sd = 1)
         
         simulationPlotData <- calculateDiscreteSimulationPlotData(discreteSimulationParameterList = discreteSimulationParameterList, 
-                                                                  noises = noises)
+                                                                  noises = noises, 
+                                                                  useCpp = useCpp)
         
         if(useHighCharts) {#Plots as Highcharts
           noisePlot <- singleLineHighchart(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises", 
@@ -377,5 +376,5 @@ aCOGARCH_SimulationApp <- function() {
   #Start der App im Browser auf localhost:2021----
   shinyApp(ui = aCOGARCH_SimulationApp_UI, 
            server = aCOGARCH_SimulationApp_Server, 
-           options = list(launch.browser = TRUE, host = "127.0.0.1", port = 2021))
+           options = list(launch.browser = TRUE, host = "127.0.0.1", port = portToRun))
 }
