@@ -5,7 +5,7 @@ base::source("https://raw.githubusercontent.com/JonasKir97/aparch_app/master/pac
 appSettings <- list(
   useHighcharts = TRUE,  #use highcharts instead of ggplot
   useCpp = TRUE, #use Cpp in some steps instead of R-Code (much fatser computation times, given Rcpp is avaialble on the system)
-  appPort = 2021
+  appPort = 2021 #port where the app is running on localhost
 )
 
 apapp.pm.requiredPackages <- apapp.pm.getRequiredPackages(useHighcharts = appSettings$useHighcharts, 

@@ -1,5 +1,5 @@
 #' helper to validate the inputs for the discrete simulation of an APARCH(1,1)-process
-validateAndProcessDiscreteSimulationInput <- function(shinyInputObject, maxSteps = NULL) {
+parseDiscreteSimulationInput <- function(shinyInputObject, maxSteps = NULL) {
   deltas <- shinyInputObject$deltaDiscrete #Zeichenkette, ggf kommagetrennt für mehrere Simulationen mit variierenden Delta
   deltas <- as.numeric(strsplit(deltas, ",")[[1]])
   if(any(is.na(deltas)) || any(deltas <=0)) {#Konvertierung in Numerisch ging an mindestens einer Stelle schief, Fehler ausgeben
@@ -104,7 +104,7 @@ simulateDiscreteAPARCH11 <- function(steps = 1000,
 #' \code{namedArgs} : a named list consisting of the named arguments with values for the function given in \code{FUN}
 #' \code{countArgName} : the name of the argument of \code{FUN} which identifies the number of random variables that should be simulated
 #' defaults to a normal distribution with a mean of 0 and a standard deviation of 1
-#' @param randomSeed an integer specifying a seed for reproducibility
+#' @param randomSeed an integer specifying a seed for reproducibility or \code{NULL}
 #' @return a named list consisting of
 #' \code{jumpTimes} : a vector of the processes jump times
 #' \code{levyJumps} : a vector with the jumps of the Levy process
@@ -116,7 +116,7 @@ simulateCompoundPoisson <- function(timeGrid = 1:10,
                                                              countArgName = "n"),
                                     randomSeed = 2021) {
   
-  set.seed(randomSeed)
+  if(is.integer(randomSeed)) set.seed(randomSeed)
   lastTimeToReach <- timeGrid[length(timeGrid)] #last time in the process, simulate exp-rvs until reached
   interarrivalTimes <- numeric(0)
   reachedLastTime <- timeGrid[1]
@@ -152,7 +152,7 @@ simulateCompoundPoisson <- function(timeGrid = 1:10,
 #' @param nu
 #' @param theta
 #' @param gs
-#' @param randomSeed an integer specifying a seed for reproducibility
+#' @param randomSeed an integer specifying a seed for reproducibility or \code{NULL}
 #' @return a named list consisting of
 #' \code{jumpTimes} : a vector of the processes jump times
 #' \code{levyProcess} : a vector with the values of the Levy process (Variance gamma process)
@@ -166,7 +166,7 @@ simulateVarianceGamma <- function(timeGrid = 1:10,
   ts <- seq(0,timeGrid[length(timeGrid)],gs)
   dts <- ts[-1]-ts[-length(ts)]
   
-  set.seed(randomSeed)
+  if(is.integer(randomSeed)) set.seed(randomSeed)
   gammaVariables <- stats::rgamma(n = length(dts), shape=(1/nu)*dts, scale=nu)
   normalsForBrownian <- stats::rnorm(n = length(dts), mean = 0, sd = sqrt(gammaVariables))
   brownian <- c(0,cumsum(normalsForBrownian))
@@ -181,7 +181,7 @@ simulateBrownianMotion <- function(timeGrid = 1:10,
                                    gs = 0.01, 
                                    randomSeed = 2021) {
   
-  set.seed(randomSeed)
+  if(is.integer(randomSeed)) set.seed(randomSeed)
   ts <- seq(0,timeGrid[length(timeGrid)],gs)
   brownian <- cumsum(stats::rnorm(n = length(ts), mean = mu, sd = sigma))
   return(list(jumpTimes = ts, levyProcess = brownian))
@@ -207,7 +207,8 @@ calculateDiscreteSimulationPlotData <- function(discreteSimulationParameterList,
                                                  useCPP = useCpp)
       
       data.frame(x = 1:length(simulationData$sigmaDelta),
-                 sigmaDelta = simulationData$sigmaDelta, 
+                 sigmaDelta = simulationData$sigmaDelta,
+                 sigma = simulationData$sigmaDelta^(1/delta),
                  Y = simulationData$Y,
                  Simulation = paste0("Delta=",delta,",Gamma=",gamma), 
                  stringsAsFactors = FALSE)
@@ -281,3 +282,4 @@ parseLevySimulationSpecification <- function(shinyInput) {
     return(errorList("Ungültiger Lévyprozess ausgewählt."))
   }
 }
+

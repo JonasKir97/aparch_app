@@ -84,19 +84,21 @@ stockHighchartFromCleanNasdaqData <- function(cleanData, plotTitle = NULL, price
   
   xtsPrices <- xts::xts(x = cleanData$price, order.by = cleanData$day)
   xtsLogReturns <- xts::xts(x = cleanData$logReturn, order.by = cleanData$day)
-  xtsReturns <- xts::xts(x = cleanData$Return, order.by = cleanData$day)
+  #xtsReturns <- xts::xts(x = cleanData$Return, order.by = cleanData$day)
   
   hc <- highchart(type="stock") %>%
-    hc_yAxis_multiples(create_yaxis(2, height = c(2, 1), turnopposite = TRUE)) %>% 
+    hc_yAxis_multiples(create_yaxis(2, height = c(2, 1), turnopposite = TRUE, 
+                                    labels = list(style = list(color = "white")))) %>% 
     hc_title(text = plotTitle, style=list(color="white"))
   
   hc <- hc %>% 
     hc_add_series(xtsPrices, name = "Preis", yAxis = 0, color = priceColor) %>% 
-    hc_add_series(xtsLogReturns, name = "Log-Return", yAxis = 1, color = returnColor) %>% 
-    hc_add_series(xtsLogReturns, name = "Return", yAxis = 1, color = returnColor)
+    hc_add_series(xtsLogReturns, name = "Log-Return", yAxis = 1, color = returnColor) 
+  #%>% hc_add_series(xtsLogReturns, name = "Return", yAxis = 1, color = returnColor)
   
   hc <- hc %>% hc_rangeSelector(enabled = FALSE)
-  
+  hc <- hc %>% hc_xAxis(labels = list(style = list(color = "white")))
+  hc <- hc %>% hc_legend(itemStyle = list(color="white", fontSize = "14px"))
   hc
 }
 
@@ -127,6 +129,7 @@ groupedLineHighchart <- function(plotData, xColumn, yColumn, colorColumn,
   hc <- highcharter::hchart(pd,"line",hcaes(x = x, y = y, group = col), dataLabels = list(color="white"))
   hc <- addTitleAndLabelsToHighchart(hc = hc, plotTitle = plotTitle, xLabel = xLabel, yLabel = yLabel)
   hc <- hc_add_theme(hc, hc_theme(chart = list(backgroundColor = "#2B3E50")))
+  hc <- hc %>% hc_legend(itemStyle = list(color="white",fontSize = "14px"))
   hc
 }
 
@@ -138,62 +141,112 @@ singleLineHighchart <- function(x,y,xLabel = NULL, yLabel = NULL,plotTitle = NUL
   hc
 }
 
-
 generateCompoundPoissonLevyProcessPlot <- function(levyData, useHighCharts = TRUE) {
+  
+  xStepfunData <- as.vector(rbind(c(0,levyData$jumpTimes[-length(levyData$jumpTimes)]), levyData$jumpTimes))
+  levyProcessStepfunData <- as.vector(rbind(levyData$levyProcess,levyData$levyProcess))
+  levyJumpStepfundata <- as.vector(rbind(levyData$levyJumps,levyData$levyJumps))
+  
+  pd <- data.frame(x = rep(xStepfunData,2), 
+                   y = c(levyProcessStepfunData,levyJumpStepfundata), 
+                   Prozess = rep(c("Compound Poisson","Sprünge"),each = length(xStepfunData)), stringsAsFactors = FALSE)
+  
   if(useHighCharts) {
-    pd <- data.frame(x = rep(levyData$jumpTimes,2), 
-                     y = c(levyData$levyProcess,levyData$levyJumps), 
-                     Prozess = rep(c("Compound Poisson","Sprünge"),each = length(levyData[[1]])), stringsAsFactors = FALSE)
-    
-    
-    hc <- groupedLineHighchart(plotData = pd, xColumn = "x", yColumn = "y", colorColumn = "Prozess") %>% 
-      hc_colors(colors = c("white","lightblue"))
-    
-    return(list(
-      hc = hc
-    ))
+    cpPlot <- groupedLineHighchart(plotData = pd, xColumn = "x", yColumn = "y", colorColumn = "Prozess", 
+                               plotTitle = "Verlauf des simulierten Compound Poisson Prozesses") %>% 
+      hc_colors(colors = c("red","white")) %>% hc_legend(itemStyle = list(color="white",fontSize = "14px"))
   } else {
-    processData <- data.frame(x=levyData$jumpTimes, y = levyData$levyProcess)
-    
-    processPlot <- ggplot(processData) + geom_step(mapping = aes(x=x,y=y), color="white") + darkPlotTheme()
-    processPlot <- processPlot + labs(x="Zeit",y="Wert",title ="Verlauf des simulierten Compound Poisson")
-    
-    
-    jumpData <- data.frame(x=levyData$jumpTimes, y = levyData$levyJumps)
-    jumpPlot <- ggplot(jumpData) + geom_step(mapping = aes(x=x,y=y), color="white") + darkPlotTheme()
-    jumpPlot <- jumpPlot + labs(x="Zeit",y="Wert",title ="Verlauf der Sprünge des simulierten Compound Poisson")
-    
-    return(list(
-      processPlot = processPlot,
-      jumpPlot = jumpPlot
-    ))
+    cpPlot <- basicMultiLinePlot(plotData = pd, xColumn = "x", yColumn = "y", colorColumn = "Prozess",
+                                 xLabel = "Zeit", yLabel = "Compound Poisson Prozess",
+                                 plotTitle = "Verlauf des simulierten Compound Poisson Prozesses")
+    cpPlot <- cpPlot + scale_color_manual(values=c("red","white"), breaks = c("Compound Poisson","Sprünge"))
   }
+  
+  return(cpPlot)
 }
 
 generateVarianceGammaLevyProcessPlot <- function(levyData, useHighCharts = TRUE) {
+  
+  pd <- data.frame(x = rep(levyData$jumpTimes,2), 
+                   y = c(levyData$levyProcess,c(0,levyData$levyProcess[-1] - levyData$levyProcess[-length(levyData$levyProcess)])),
+                   Prozess = rep(c("Varianz-Gamma Prozess","Sprünge"),each = length(levyData$jumpTimes)), 
+                   stringsAsFactors = FALSE)
+  
   if(useHighCharts) {
-    vgPlot <- singleLineHighchart(x = levyData$jumpTimes, y = levyData$levyProcess, 
-                              xLabel = "Zeit", yLabel = "VG-Prozess", 
-                              plotTitle = "Verlauf des simulierten Varianz-Gamma-Prozesses") %>% 
-      hc_colors(colors = "white")
+    vgPlot <- groupedLineHighchart(plotData = pd, xColumn = "x", yColumn = "y", colorColumn = "Prozess", 
+                                   plotTitle = "Verlauf des simulierten Varianz-Gamma-Prozesses") %>% 
+      hc_colors(colors = c("red","white")) %>% hc_legend(itemStyle = list(color="white",fontSize = "14px"))
   } else {
-    vgPlot <- basicLinePlot(x = levyData$jumpTimes, y = levyData$levyProcess, 
-                            xLabel = "Zeit", yLabel = "VG-Prozess", lineColor = "white",
-                            plotTitle = "Verlauf des simulierten Varianz-Gamma-Prozesses")
+    vgPlot <- basicMultiLinePlot(plotData = pd, xColumn = "x", yColumn = "y", colorColumn = "Prozess",
+                                 xLabel = "Zeit", yLabel = "Varianz-Gamma-Prozess",
+                                 plotTitle = "Verlauf des simulierten Varianz-Gamma-Prozesses")
+    vgPlot <- vgPlot + scale_color_manual(values=c("red","white"), breaks = c("Varianz-Gamma Prozess","Sprünge"))
   }
   return(vgPlot)
 } 
 
 generateBrownianLevyProcessPlot <- function(levyData, useHighCharts = TRUE) {
+  
+  pd <- data.frame(x = rep(levyData$jumpTimes,2), 
+                   y = c(levyData$levyProcess,c(0,levyData$levyProcess[-1] - levyData$levyProcess[-length(levyData$levyProcess)])),
+                   Prozess = rep(c("Brownsche Bewegung","Sprünge"),each = length(levyData$jumpTimes)), 
+                   stringsAsFactors = FALSE)
+  
   if(useHighCharts) {
-    bbPlot <- singleLineHighchart(x = levyData$jumpTimes, y = levyData$levyProcess, 
-                                  xLabel = "Zeit", yLabel = "BB", 
-                                  plotTitle = "Verlauf der Simulaierten Brownschen Bewegung") %>% 
-      hc_colors(colors = "white")
+    bbPlot <- groupedLineHighchart(plotData = pd, xColumn = "x", yColumn = "y", colorColumn = "Prozess", 
+                                   plotTitle = "Verlauf der simulierten Brownschen Bewegung") %>% 
+      hc_colors(colors = c("red","white")) %>% hc_legend(itemStyle = list(color="white",fontSize = "14px"))
   } else {
-    bbPlot <- basicLinePlot(x = levyData$jumpTimes, y = levyData$levyProcess, 
-                            xLabel = "Zeit", yLabel = "BB", lineColor = "white",
-                            plotTitle = "Verlauf der Simulaierten Brownschen Bewegung")
+    bbPlot <- basicMultiLinePlot(plotData = pd, xColumn = "x", yColumn = "y", colorColumn = "Prozess",
+                                 xLabel = "Zeit", yLabel = "Brownsche Bewegung",
+                                 plotTitle = "Verlauf der simulierten Brownschen Bewegung")
+    
+    bbPlot <- bbPlot + scale_color_manual(values=c("red","white"), breaks = c("Brownsche Bewegung","Sprünge"))
   }
   return(bbPlot)
-} 
+}
+
+generateDiscreteSimulationPlots <- function(simulationPlotData,steps,noises, useHighCharts = TRUE) {
+  if(useHighCharts) {#Plots as Highcharts
+    noisePlot <- singleLineHighchart(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises", 
+                                     xLabel = "Index", yLabel = "Verlauf der Noises")
+    
+    yPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "Y", colorColumn = "Simulation",
+                                  xLabel = "Index", yLabel = "Y", plotTitle = "Verlauf des Prozesses Y")
+    
+    sigmaDeltaPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "sigmaDelta", 
+                                           colorColumn = "Simulation", xLabel = "Index", yLabel = "sigma^delta", 
+                                           plotTitle = "Verlauf des Prozesses sigma^delta")
+    
+    sigmaPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "sigma", 
+                                      colorColumn = "Simulation", xLabel = "Index", yLabel = "sigma", 
+                                      plotTitle = "Verlauf des Prozesses sigma")
+    
+    plotRenderer <- renderHighchart
+    plotPutter <- highchartOutput
+  } else { #Plots as ggplots
+    noisePlot <- basicLinePlot(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises",
+                               xLabel = "Index", yLabel = "Verlauf der Noises")
+    
+    yPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "Y", colorColumn = "Simulation",
+                                xLabel = "Index", yLabel = "Y", plotTitle = "Verlauf des Prozesses Y")
+    yPlot <- yPlot + theme(legend.position=c(0.8,0.9))
+    
+    sigmaDeltaPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "sigmaDelta", colorColumn = "Simulation",
+                                         xLabel = "Index", yLabel = "sigma^delta", plotTitle = "Verlauf des Prozesses sigma^delta")
+    sigmaDeltaPlot <- sigmaDeltaPlot + theme(legend.position=c(0.8,0.9))
+    
+    sigmaPlot <- basicMultiLinePlot(plotData = simulationPlotData, xColumn = "x", yColumn = "sigma", colorColumn = "Simulation",
+                                    xLabel = "Index", yLabel = "sigma", plotTitle = "Verlauf des Prozesses sigma")
+    sigmaPlot <- sigmaPlot + theme(legend.position=c(0.8,0.9))
+    
+    plotRenderer <- renderPlot
+    plotPutter <- plotOutput
+  }
+  
+  return(list(
+    plots = list(noisePlot = noisePlot,yPlot = yPlot, sigmaDeltaPlot= sigmaDeltaPlot, sigmaPlot = sigmaPlot),
+    plotRenderer = plotRenderer,
+    plotPutter = plotPutter
+  ))
+}
