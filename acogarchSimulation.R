@@ -10,9 +10,14 @@ aCOGARCH_SimulationApp <- function(useHighCharts = TRUE, useCpp = TRUE, portToRu
   txtTags <- c("#specificationErrorText{color:white;font-size:14px;background-color:red}",
                "#simulationErrorText{color:white;font-size:14px;background-color:red}",
                "#levySimulationError{color:white;font-size:14px;background-color:red}")
-  btnTags <- c( "#calculateSimulation{background-color:#df691a}",
-                "#simulateLevy{background-color:#df691a}")
+  btnTags <- c("#calculateSimulation{background-color:#df691a}",
+               "#simulateLevy{background-color:#df691a}",
+               "#calculateFJA{background-color:#df691a}")
   additionalTags <- c(txtTags,btnTags)
+  
+  fjaHelpText <- paste0("Der Levyprozess kann nun durch eine First-Jump-Approximation angenähert werden. ",
+                        "Dazu wird das Gesamtintervall in 10 Schritten in jeweils 2^k Intervalle aufgeteilt ",
+                        "für k=1,...,10. Die Sprunghöhen m(k) sind die 10 Werte 1,0.9,0.8,...,0.1.")
   
   #Sidebar----
   aCOGARCH_SimulationApp_UI <- uiWrapper(
@@ -68,11 +73,19 @@ aCOGARCH_SimulationApp <- function(useHighCharts = TRUE, useCpp = TRUE, portToRu
                            textInput(inputId = "levySimuTimeGrid", label = "Zeitgitter der Simulation", value = "1:100"),
                            uiOutput(outputId = "levySimulationSpecificationUI"),
                            actionButton(inputId = "simulateLevy", label = "Simulieren", width = "100%"),
-                           verbatimTextOutput("levySimulationError")
+                           shiny::p(" "),
+                           verbatimTextOutput("levySimulationError"),
+                           shinyjs::hidden(div(id = "fjaInSimulationDiv", 
+                                               tagList(
+                                                 shiny::p(fjaHelpText),
+                                                 actionButton(inputId = "calculateFJA", 
+                                                              label = "First-Jump-Approximation berechnen", width = "100%")
+                                               )))
           )
         ),
         #Mainpanel----
         mainPanel(
+          style = paste0("overflow: auto;height: calc(100vh - 100px) !important"),
           tabsetPanel(
             tabPanel(title = "Simulation",
                      uiOutput(outputId = "simulationPlotUI")
@@ -82,6 +95,7 @@ aCOGARCH_SimulationApp <- function(useHighCharts = TRUE, useCpp = TRUE, portToRu
             ),
             tabPanel(title = "Lévysimulation",
                      uiOutput(outputId = "levySimulationMainUI"),
+                     uiOutput(outputId = "levySimulationFJAUI")
             ),
             id = "mainTabPanel", 
             type = "pills"
@@ -145,7 +159,7 @@ aCOGARCH_SimulationApp <- function(useHighCharts = TRUE, useCpp = TRUE, portToRu
         steps <- discreteSimulationParameterList$steps
         
         noises <- rnorm(n = steps, mean = 0,sd = 1)
-
+        
         a <- Sys.time()
         simulationPlotData <- calculateDiscreteSimulationPlotData(discreteSimulationParameterList = discreteSimulationParameterList, 
                                                                   noises = noises, 
@@ -228,6 +242,8 @@ aCOGARCH_SimulationApp <- function(useHighCharts = TRUE, useCpp = TRUE, portToRu
     
     #________________________________------
     #LEVYSIMULATION-----
+    currentLevySimulationData <- NULL
+    
     observeEvent(input$levySimulationType, {
       output$levySimulationMainUI <- renderUI(NULL)
       if(useHighCharts) {
@@ -258,7 +274,7 @@ aCOGARCH_SimulationApp <- function(useHighCharts = TRUE, useCpp = TRUE, portToRu
             column(3,numericInput(inputId = "levySimuVGsigma", label = "sigma", value = 1)),
             column(3,numericInput(inputId = "levySimuVGnu", label = "nu", value = 0.05)),
             column(3,numericInput(inputId = "levySimuVGtheta", label = "theta", value = 0.5)),
-            column(3,numericInput(inputId = "levySimuVGgs", label = "Schrittweite", value = 0.1))
+            column(3,numericInput(inputId = "levySimuVGgs", label = "Schrittweite", value = 0.01))
           )
         )
         
@@ -268,7 +284,7 @@ aCOGARCH_SimulationApp <- function(useHighCharts = TRUE, useCpp = TRUE, portToRu
           fluidRow(
             column(4, numericInput(inputId = "levySimuBBmu", label = "Mittelwert", value = 0)),
             column(4, numericInput(inputId = "levySimuBBsd", label = "Standardabweichung", value = 1)),
-            column(4,numericInput(inputId = "levySimuBBgs", label = "Schrittweite", value = 0.1))
+            column(4,numericInput(inputId = "levySimuBBgs", label = "Schrittweite", value = 0.01))
           )
         )
         
@@ -285,7 +301,10 @@ aCOGARCH_SimulationApp <- function(useHighCharts = TRUE, useCpp = TRUE, portToRu
       simulationSpecs <- parseLevySimulationSpecification(shinyInput = input)
       output$levySimulationError <- renderText(simulationSpecs$error)
       
+      output$levySimulationFJAUI <- renderUI(NULL)
+      
       if(!is.null(simulationSpecs$error)) {
+        shinyjs::hide("fjaInSimulationDiv")
         return()
       }
       
@@ -314,13 +333,53 @@ aCOGARCH_SimulationApp <- function(useHighCharts = TRUE, useCpp = TRUE, portToRu
         levySimulationMainUI <- withSpinner(plotOutput(outputId = "levyPlot", height = 800))
       }
       
+      currentLevySimulationData <<- levyData
+      
+      shinyjs::show("fjaInSimulationDiv")
+      
       output$levySimulationMainUI <- renderUI(levySimulationMainUI)
     })
+    
+    #_FJA----
+    observeEvent(input$calculateFJA, {
+      ld <- currentLevySimulationData
+      if(is.null(ld)) {
+        return()
+      }
+      
+      TT <- ld$jumpTimes[length(ld$jumpTimes)]
+      N <- 2^(1:10)
+      tns0 <- lapply(N, function(n2) seq(0,TT,length.out = n2+1))
+      mns0 <- seq(1,0,length.out = length(N)+1)[-(length(N)+1)]
+      
+      fjaData <- firstJumpApproximation(levyData = ld, tns = tns0, mns = mns0)
+      
+      fjaPlots <- fjaData$fjaPlotList
+      
+      originalPlot <- basicLinePlot(x = ld$jumpTimes, y = ld$levyProcess, plotTitle = "Originalprozess", 
+                                    xLabel = "Zeit", yLabel = "Originalprozess", lineColor = "white") + 
+        scale_x_continuous(limits = c(ld$jumpTimes[1],ld$jumpTimes[length(ld$jumpTimes)]), expand = c(0,0))
+      
+      fjaPlots <- c(fjaPlots, list(originalPlot))
+      
+      plotIds <- paste0("fjaPlot_",1:length(fjaPlots))
+      
+      uiList <- lapply(1:length(fjaPlots), function(k) {
+        output[[plotIds[k]]] <- renderPlot(fjaPlots[[k]])
+        withSpinner(plotOutput(outputId = plotIds[k]))
+      })
+      
+      uiList <- c(list(h1c("First-Jump-Approximation")),uiList)
+      
+      output$levySimulationFJAUI <- renderUI(uiList)
+    })
+    
+    
     
   } #end server
   
   #________________________________------
-  #Start der App im Browser auf localhost:2021----
+  #Start der App im Browser auf localhost----
   shinyApp(ui = aCOGARCH_SimulationApp_UI, 
            server = aCOGARCH_SimulationApp_Server, 
            options = list(launch.browser = TRUE, host = "127.0.0.1", port = portToRun))

@@ -248,7 +248,8 @@ parseLevySimulationSpecification <- function(shinyInput) {
     theta <- as.numeric(shinyInput$levySimuVGtheta)
     if(is.na(theta) ) return(errorList("Ungültiges theta"))
     gs <- as.numeric(shinyInput$levySimuVGgs)
-    if(is.na(gs) ) return(errorList("Ungültiges gs"))
+    if(is.na(gs) ) return(errorList("Ungültige Eingabe in der Schrittweite"))
+    if(gs <= 0) return(errorList("Die Schrittweite muss positiv sein."))
     
     return(list(
       error = NULL,
@@ -265,9 +266,11 @@ parseLevySimulationSpecification <- function(shinyInput) {
     mu <- as.numeric(shinyInput$levySimuBBmu)
     if(is.na(mu)) return(errorList("Ungültige Eingabe im Mittelwert."))
     sigma <- as.numeric(shinyInput$levySimuBBsd)
-    if(is.na(sigma)) eturn(errorList("Ungültige Eingabe in der Standaradabweichung"))
+    if(is.na(sigma)) eturn(errorList("Ungültige Eingabe in der Standaradabweichung."))
+    if(sigma < 0) return(errorList("Die Standardabweichung darf nicht negativ sein."))
     gs <- as.numeric(shinyInput$levySimuBBgs)
-    if(is.na(gs) ) return(errorList("Ungültiges gs"))
+    if(is.na(gs)) return(errorList("Ungültige Eingabe in der Schrittweite"))
+    if(gs <= 0) return(errorList("Die Schrittweite muss positiv sein."))
     
     return(list(
       error = NULL,
