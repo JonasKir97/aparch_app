@@ -33,6 +33,7 @@ In der Lévysimulation können verschiedene Lévyprozesse simuliert werden. Dies
 - Brownsche Bewegung
 
 Die entsprechenden Parameter zur Spezifikation der Prozesse können in der Sidebar eingestellt werden.
+Zudem kann in der Simulation eine First-Jump-Approximation durchgeführt werden. Deer Button dafür wird sichtbar, sobald ein Lévyprozess simuliert wurde.
 
 
 
@@ -47,3 +48,4 @@ Die entsprechenden Parameter zur Spezifikation der Prozesse können in der Sideb
 | `simulateDiscreteAPARCH11inCPP.cpp` | C++ Funktion zur sehr schnellen Berechnung einer diskreten APARCH(1,1)-Simulation |
 | `nasdaqDataReader.R` | Hilfsfunktionen um csv-Export von nasdaq.com, z.B. https://www.nasdaq.com/market-activity/index/spx/historical für S&P500 |
 | `nasdaqCsvExampleData` | Verzeichnis mit Beispiel-csv-Exports von nasdaq.com: Tesla,S&P500,LVMH |
+| `firstJumpApproximation.R` | enthält Funktion für die First-Jump-Approximation eines Lévyprozesses |

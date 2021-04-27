@@ -61,7 +61,8 @@ apapp.pm.sourceNeededFilesFromRepo <- function(useCpp) {
               "https://raw.githubusercontent.com/JonasKir97/aparch_app/master/acogarchSimulationAppHelpers.R",
               "https://raw.githubusercontent.com/JonasKir97/aparch_app/master/guiHelpers.R",
               "https://raw.githubusercontent.com/JonasKir97/aparch_app/master/nasdaqDataReader.R",
-              "https://raw.githubusercontent.com/JonasKir97/aparch_app/master/plotHelpers.R")
+              "https://raw.githubusercontent.com/JonasKir97/aparch_app/master/plotHelpers.R",
+              "https://raw.githubusercontent.com/JonasKir97/aparch_app/master/firstJumpApproximation.R")
   
   for(rFile in rFiles) {
     print(paste0("Source R-Datei ",rFile,"."))
