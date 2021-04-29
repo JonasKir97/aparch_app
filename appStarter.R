@@ -22,6 +22,6 @@ apapp.pm.loadRequiredPackages(requiredPackages = apapp.pm.requiredPackages)
 apapp.pm.sourceNeededFilesFromRepo(useCpp = appSettings$useCpp)
 
 #Start the webapp
-aCOGARCH_SimulationApp(useHighCharts = appSettings$useHighcharts, 
+aCOGARCH_SimulationApp(useHighCharts = appSettings$useHighcharts,
                        useCpp = appSettings$useCpp, 
                        portToRun = appSettings$appPort)

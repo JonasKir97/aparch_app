@@ -211,16 +211,21 @@ generateDiscreteSimulationPlots <- function(simulationPlotData,steps,noises, use
     noisePlot <- singleLineHighchart(x = 1:steps, y = noises, plotTitle = "Verlauf der Noises", 
                                      xLabel = "Index", yLabel = "Verlauf der Noises")
     
+    rainbowColors <- grDevices::rainbow(n = length(unique(simulationPlotData[["Simulation"]])))
+    
     yPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "Y", colorColumn = "Simulation",
                                   xLabel = "Index", yLabel = "Y", plotTitle = "Verlauf des Prozesses Y")
+    yPlot <- yPlot %>% hc_colors(colors = rainbowColors) 
     
     sigmaDeltaPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "sigmaDelta", 
                                            colorColumn = "Simulation", xLabel = "Index", yLabel = "sigma^delta", 
                                            plotTitle = "Verlauf des Prozesses sigma^delta")
+    sigmaDeltaPlot <- sigmaDeltaPlot %>% hc_colors(colors = rainbowColors) 
     
     sigmaPlot <- groupedLineHighchart(plotData = simulationPlotData, xColumn = "x", yColumn = "sigma", 
                                       colorColumn = "Simulation", xLabel = "Index", yLabel = "sigma", 
                                       plotTitle = "Verlauf des Prozesses sigma")
+    sigmaPlot <- sigmaPlot %>% hc_colors(colors = rainbowColors)
     
     plotRenderer <- renderHighchart
     plotPutter <- highchartOutput
